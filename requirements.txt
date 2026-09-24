@@ -1,0 +1,5 @@
+pandas
+openpyxl
+lxml
+aas-core3.0
+pytest

@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+
+# Office-Sperrdateien (geöffnete Excel-Dateien)
+~$*
+.~lock.*
+
+# IDE (lokale Einstellungen)
+.idea/workspace.xml
+.idea/shelf/
