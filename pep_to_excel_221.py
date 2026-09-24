@@ -10,9 +10,16 @@ Aufbau der Pipeline
                 Zahlen mit Dezimalkomma in echte Floats wandeln
 3. EXPORT       ein Blatt je Tabelle plus zwei Langformat-Blaetter fuer Pivots
 
-Alle Seitenzahlen und Spaltenzuordnungen sind in TABELLEN bzw. in den
-build_*-Funktionen gebuendelt. Aendert sich das PDF-Layout, muss nur dort
-nachgezogen werden.
+Alle Seitenzahlen und Spaltenzuordnungen sind in den build_*-Funktionen
+gebuendelt. Aendert sich das PDF-Layout, muss nur dort nachgezogen werden.
+Seitenangaben beziehen sich auf die gedruckte Seitenzahl im PEP (= PDF-Seite);
+der PDF-Index in pdfplumber ist jeweils um eins kleiner.
+
+Die Kopfdaten (Registriernummer, Ausgabedatum, Verifizierer, PCR/PSR,
+funktionelle Einheit ...) liest build_kopfdaten() aus dem Fliesstext. Wird
+ein Feld nicht gefunden, greift der bisherige Standardwert und es gibt eine
+Warnung - so faellt ein geaendertes PDF auf, statt still falsche Werte zu
+uebernehmen.
 """
 
 import re
@@ -68,7 +75,7 @@ def ist_abschnitt(row):
 # ---------------------------------------------------------------- Tabelle 1-3
 
 def build_produktfamilie(pdf):
-    """Seite 5 (PDF-Index 3): Produktserie / Artikelnummer / Masse."""
+    """Seite 4 (PDF-Index 3): Produktserie / Artikelnummer / Masse."""
     page = pdf.pages[3]
     xs, ys = grid_lines(page, min_len=5)
     grid = extract_grid(page, xs, ys)
@@ -105,7 +112,7 @@ def build_produktfamilie(pdf):
 
 
 def build_material(pdf):
-    """Seite 6 (PDF-Index 4): Materialzusammensetzung des Referenzprodukts."""
+    """Seite 5 (PDF-Index 4): Materialzusammensetzung des Referenzprodukts."""
     page = pdf.pages[4]
     xs, ys = grid_lines(page, min_len=5)
     grid = extract_grid(page, xs, ys)
@@ -136,11 +143,83 @@ def build_material(pdf):
 
 
 def build_lca_setup(pdf):
-    """Seite 9 (PDF-Index 7): Software-/Datenbank-Parameter der Oekobilanz."""
+    """Seite 8 (PDF-Index 7): Software-/Datenbank-Parameter der Oekobilanz."""
     grid = extract_grid(pdf.pages[7])
     rows = [{"Parameter": r[0].strip(), "Beschreibung": r[1].strip()}
             for r in grid[1:] if r[0].strip()]
     return pd.DataFrame(rows)
+
+
+# ---------------------------------------------------------------- Kopfdaten
+
+# Feld -> (Regex, Standardwert). Die Regex laeuft ueber den Text aller Seiten;
+# Gruppe 1 ist der Wert. Standardwerte = Stand WAGO-00001-V01.01-EN.
+KOPFDATEN = {
+    "PEP-Registriernummer": (r"PEP Registration No\.?:\s*([A-Z0-9][\w.-]+)", "WAGO-00001-V01.01-EN"),
+    "Ausgabedatum": (r"Date of issue:\s*(\d{2}-\d{4})", "02-2026"),
+    "Gueltigkeit (Jahre)": (r"Validity period:\s*(\d+)\s*years", "5"),
+    "Verifizierer-Akkreditierung": (r"Verifier accreditation number:\s*(\S+)", "VH44"),
+    "PCR": (r"based on the (PCR-[\w-]+ \d{2} \d{2})", "PCR-ed4-EN-2021 09 06"),
+    "PSR": (r"and (PSR-[\w-]+ \d{2} \d{2})", "PSR-0001-ed4-EN-2022 11 16"),
+    "Referenzprodukt": (r"product with code (\d{3}-\d+)", "221-422"),
+    "Referenzjahr Primaerdaten": (r"refers to the (\d{4}) calendar year", "2024"),
+    "Referenzlebensdauer (Jahre)": (r"reference lifetime\s+\(RTL\) is (\d+) years", "30"),
+    "Programmbetreiber-Website": (r"Information and reference documents:\s*(\S+)", "www.pep-ecopassport.org"),
+    "Produkt": (r"^(.*\bSeries /.*)$", "221 Series / Splicing Connector with Levers"),
+    "EPD-Ersteller": (r"Company information\s*\n(.+)", "WAGO Kontakttechnik GmbH & Co. KG"),
+    "Hersteller-Adresse": (r"Company information\s*\n.+\n(.+)", "Hansastra\u00dfe 27, 32423 Minden, Germany"),
+    "Hersteller-Kontakt": (r"Contact person:\s*(.+)", "Alexander Flekler, alexander.flekler@wago.com"),
+    "Normen": (r"PEPs are compliant with (.+)", "XP C08-100-1:2016 and EN 50693:2019 or NF E38-500 :2022"),
+    "Funktionelle Einheit": (r"The functional unit of this study is:\s*(.+?)\s*Lifetime and use rate",
+                             "The function of the product is to connect power transmission cables together, "
+                             "or to connect them to equipment, for one unit and its packaging, under operating "
+                             "conditions identical to those of the cable: 1 ampere (A) over 30 years, with a use "
+                             "rate of 70%, in accordance with the applicable standards."),
+}
+
+
+def verifizierung(page):
+    """'extern' / 'intern' aus dem Ankreuzfeld auf dem Deckblatt.
+
+    Das Kreuz ist ein einzelnes 'x' rechts neben 'Internal:' bzw.
+    'External:'. Es gilt die Beschriftung, die auf derselben Zeile links vom
+    Kreuz am naechsten steht.
+    """
+    worte = page.extract_words()
+    labels = [w for w in worte if w["text"] in ("Internal:", "External:")]
+    for k in (w for w in worte if w["text"] in ("x", "X", "\u2713", "\u2714")):
+        links = [l for l in labels if abs(l["top"] - k["top"]) <= 15 and l["x0"] <= k["x0"]]
+        if links:
+            return "extern" if max(links, key=lambda l: l["x0"])["text"] == "External:" else "intern"
+    return None
+
+
+def build_kopfdaten(pdf):
+    """Kopfdaten des PEP aus dem Fliesstext aller Seiten."""
+    text = "\n".join(p.extract_text() or "" for p in pdf.pages)
+    daten = {}
+    for feld, (muster, standard) in KOPFDATEN.items():
+        m = re.search(muster, text, re.S if feld == "Funktionelle Einheit" else re.M)
+        if m:
+            daten[feld] = " ".join(m.group(1).split())
+        else:
+            daten[feld] = standard
+            protokoll.append(f"Kopfdaten: '{feld}' nicht im PDF gefunden, Standardwert benutzt")
+    daten["Produkt"] = daten["Produkt"] if daten["Produkt"].startswith("WAGO") else "WAGO " + daten["Produkt"]
+    daten["Verifizierung"] = verifizierung(pdf.pages[0]) or "extern"
+    # "XP C08-100-1:2016 and EN 50693:2019 or NF E38-500 :2022" -> Liste,
+    # ergaenzt um ISO 14025 (Deckblatt, "Document complies with ...").
+    normen = [n.strip().replace(" :", ":") for n in re.split(r"\s+(?:and|or)\s+", daten["Normen"])]
+    if re.search(r"complies with ISO 14025:2006", text):
+        normen.insert(0, "ISO 14025:2006")
+    daten["Normen"] = "; ".join(normen)
+    # Das Deckblatt nennt "PCR-4-ed4-EN-2021 09 06", der Fliesstext (S. 3, 6,
+    # 7) durchgaengig "PCR-ed4-EN-2021 09 06". Uebernommen wird der Fliesstext.
+    deck = re.search(r"Drafting rules:\s*\W?(PCR-[\w-]+ \d{2} \d{2})", text)
+    if deck and deck.group(1) != daten["PCR"]:
+        protokoll.append(f"PDF uneinheitlich: Deckblatt nennt {deck.group(1)!r}, "
+                         f"Fliesstext {daten['PCR']!r} - uebernommen: Fliesstext")
+    return daten
 
 
 # ---------------------------------------------------------------- Indikatoren
@@ -149,7 +228,7 @@ PHASEN = ["A1-3", "A4", "A5", "B1-7", "C1-4", "Total", "D"]
 
 
 def build_indikatoren(pdf, seite_idx, tabellenname):
-    """Seiten 9/10/11: Indikatortabellen mit sieben Lebenszyklusspalten.
+    """Seiten 9/10/11 (PDF-Index 8/9/10): Indikatortabellen mit sieben Lebenszyklusspalten.
 
     Liefert (Breitformat, Langformat). Zwischenueberschriften der Seite
     werden als Spalte 'Gruppe' mitgefuehrt, statt sie wegzuwerfen.
@@ -222,7 +301,15 @@ def gruppenlabels(page, xs, ys, zeile=0):
 
 
 def build_faktoren(pdf, seite_idx, serie):
-    """Seiten 14/15: Multiplikationsfaktoren je Variante und Lebenszyklusphase."""
+    """Seiten 14/15 (PDF-Index 13/14): Multiplikationsfaktoren je Variante und Phase.
+
+    Achtung WAGO-00001: Die Green-Range-Tabelle (S. 14) enthaelt eine vierte
+    Variantenspalte "2421", die im PDF weggeschnitten und damit unsichtbar
+    ist - im Text steht sie aber (S. 4). In der Produkttabelle fehlt sie
+    (keine Masse), der Text auf S. 13 nennt stattdessen "221-2431". Die
+    Werte werden uebernommen, in Faktoren_lang aber mit einem Hinweis
+    versehen (siehe main).
+    """
     page = pdf.pages[seite_idx]
     xs, ys = grid_lines(page)
     grid = extract_grid(page, xs, ys)
@@ -299,34 +386,49 @@ def main(pdf_pfad, xlsx_pfad):
                                  ignore_index=True)
     faktoren_lang = pd.concat([lang_green, lang_std], ignore_index=True)
 
+    kopf = build_kopfdaten(pdf)
+
+    # Varianten mit Faktoren, aber ohne Zeile in der Produkttabelle (bei
+    # WAGO-00001: 221-2421, Spalte im PDF ausgeblendet, siehe build_faktoren).
+    nur_faktoren = sorted(set(faktoren_lang["Variante"]) - set(produktfamilie["Artikelnummer"]))
+    faktoren_lang["Hinweis"] = [
+        "nicht in der Produkttabelle (S. 4): keine Masse im PEP, kein Teilmodell"
+        if v in nur_faktoren else "" for v in faktoren_lang["Variante"]]
+
     info = pd.DataFrame([
         ("Quelldatei", Path(pdf_pfad).name),
-        ("PEP-Registriernummer", "WAGO-00001-V01.01-EN"),
-        ("Produkt", "WAGO 221 Series / Splicing Connector with Levers"),
-        ("Referenzprodukt", "221-422"),
-        ("Ausgabedatum", "02-2026"),
-        ("Gueltigkeit", "5 Jahre"),
-        ("Referenzlebensdauer", "30 Jahre bei 70 % Nutzungsrate, 1 A"),
-        # Die folgenden Felder liest excel_to_aasx.py fuer Pflichtelemente des
-        # Teilmodells. Leer gelassene Felder fallen dort auf Standardwerte
-        # zurueck bzw. werden als "im PEP nicht enthalten" berichtet.
-        ("Funktionelle Einheit",
-         "Connect power transmission cables together or to equipment; "
-         "1 A over 30 years at a 70 % use rate, one unit incl. packaging"),
-        ("EPD-Ersteller", "WAGO Kontakttechnik GmbH & Co. KG"),
-        ("Hersteller-Kontakt", "Alexander Flekler, alexander.flekler@wago.com"),
-        ("Programmbetreiber-Website", "www.pep-ecopassport.org"),
+        ("PEP-Registriernummer", kopf["PEP-Registriernummer"]),
+        ("Produkt", kopf["Produkt"]),
+        ("Referenzprodukt", kopf["Referenzprodukt"]),
+        ("Ausgabedatum", kopf["Ausgabedatum"]),
+        ("Gueltigkeit", f"{kopf['Gueltigkeit (Jahre)']} Jahre"),
+        ("Referenzlebensdauer", f"{kopf['Referenzlebensdauer (Jahre)']} Jahre bei 70 % Nutzungsrate, 1 A"),
+        # Die folgenden Felder liest excel_to_aasx.py fuer das Teilmodell.
+        # Leer gelassene Felder werden dort weggelassen und im Bericht genannt.
+        ("Funktionelle Einheit", kopf["Funktionelle Einheit"]),
+        ("EPD-Ersteller", kopf["EPD-Ersteller"]),
+        ("Hersteller-Adresse", kopf["Hersteller-Adresse"]),
+        ("Hersteller-Kontakt", kopf["Hersteller-Kontakt"]),
+        ("Programmbetreiber", "Association P.E.P. (PEP ecopassport)"),
+        ("Programmbetreiber-Website", kopf["Programmbetreiber-Website"]),
         ("Programmbetreiber E-Mail", ""),
         ("Deklarations-URL", ""),
+        ("Verifizierung", kopf["Verifizierung"]),
+        ("Verifizierer-Akkreditierung", kopf["Verifizierer-Akkreditierung"]),
+        ("PCR", kopf["PCR"]),
+        ("PSR", kopf["PSR"]),
+        ("Normen", kopf["Normen"]),
+        ("Referenzjahr Primaerdaten", kopf["Referenzjahr Primaerdaten"]),
+        ("Referenzlebensdauer (Jahre)", kopf["Referenzlebensdauer (Jahre)"]),
         ("Masse Referenzprodukt",
          material_kopf.get("Reference product mass", "1.60E-03 kg")),
         ("Masse Verpackung je Einheit",
          material_kopf.get("Packaging mass per declared unit", "3.58E-04 kg")),
         ("", ""),
         ("Blatt", "Inhalt (Seite im PDF)"),
-        ("Produktfamilie", "Varianten und Massen (S. 5)"),
-        ("Materialzusammensetzung", "Werkstoffe des Referenzprodukts (S. 6)"),
-        ("LCA_Setup", "Software, Datenbank, Methode (S. 9)"),
+        ("Produktfamilie", "Varianten und Massen (S. 4)"),
+        ("Materialzusammensetzung", "Werkstoffe des Referenzprodukts (S. 5)"),
+        ("LCA_Setup", "Software, Datenbank, Methode (S. 8)"),
         ("Ind_verbindlich", "Verbindliche Wirkungsindikatoren (S. 9)"),
         ("Ind_Sachbilanz", "Sachbilanz-/Ressourcenindikatoren (S. 10)"),
         ("Ind_optional", "Optionale Wirkungsindikatoren (S. 11)"),
@@ -336,10 +438,17 @@ def main(pdf_pfad, xlsx_pfad):
         ("Faktoren_lang", "Alle Faktoren im Langformat - fuer Pivot"),
         ("", ""),
         ("Hinweis Faktoren",
-         "Wirkung einer Variante = Wert des Referenzprodukts 221-422 x Faktor"),
+         "Wirkung einer Variante = Wert des Referenzprodukts " + kopf["Referenzprodukt"] + " x Faktor"),
         ("Hinweis Nutzungsphase",
          "B6-Ergebnisse mit dem Quadrat des tatsaechlichen Stroms skalieren"),
-    ], columns=["Feld", "Wert"])
+        ("Hinweis Lebenszyklus",
+         "Spalte B1-7 enthaelt nur B6 (B1-B5, B7 nicht anwendbar, S. 7); "
+         "Spalte C1-4 enthaelt C2-C4 (C1 ausgeschlossen, S. 7/12)"),
+    ] + ([("Hinweis Varianten",
+           ", ".join(nur_faktoren) + ": nur in der Faktorentabelle, nicht in der "
+           "Produkttabelle - keine Masse im PEP, daher kein Teilmodell")]
+         if nur_faktoren else []),
+        columns=["Feld", "Wert"])
 
     with pd.ExcelWriter(xlsx_pfad, engine="openpyxl") as writer:
         schreibe(writer, info, "Info", zahl_ab=99)
@@ -370,10 +479,17 @@ def main(pdf_pfad, xlsx_pfad):
     # Varianten mit Faktoren, aber ohne Massenangabe im PEP (221-2421 steht
     # nur in der Faktorentabelle S. 14) - fuer die spaetere AASX-Erzeugung
     # fehlt damit die deklarierte Masse.
-    nur_faktoren = sorted(set(faktoren_lang["Variante"]) - set(produktfamilie["Artikelnummer"]))
     if nur_faktoren:
         protokoll.append("Faktoren ohne Produktzeile (keine Masse im PEP): "
                          + ", ".join(nur_faktoren))
+    # Artikelnummern, die im Text genannt, aber in keiner Tabelle stehen
+    # (WAGO-00001 S. 13: "221-2431" - vermutlich Tippfehler fuer 221-2421).
+    serie = kopf["Referenzprodukt"].split("-")[0]
+    text = "\n".join(p.extract_text() or "" for p in pdf.pages)
+    bekannt = set(produktfamilie["Artikelnummer"]) | set(faktoren_lang["Variante"])
+    fremd = sorted(set(re.findall(rf"\b{serie}-\d{{3,4}}\b", text)) - bekannt)
+    if fremd:
+        protokoll.append("Im Text genannt, aber in keiner Tabelle: " + ", ".join(fremd))
     if protokoll:
         print("\nWarnungen:")
         for w in protokoll:
