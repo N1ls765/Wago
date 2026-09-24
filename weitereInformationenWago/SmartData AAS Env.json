@@ -1,0 +1,238 @@
+{
+    "openapi": "3.0.1",
+    "info": {
+        "title": "SmartData AAS Env",
+        "description": "Provides GET endpoints for the AAS components shells, submodels and concept descriptions.",
+        "version": "1.0"
+    },
+    "servers": [
+        {
+            "url": "https://c1.api.wago.com/smartdata-aas-env"
+        }
+    ],
+    "paths": {
+        "/shells": {
+            "get": {
+                "summary": "All shells",
+                "description": "All shells",
+                "operationId": "access-shells",
+                "responses": {
+                    "200": {
+                        "description": "null"
+                    }
+                }
+            }
+        },
+        "/shells/{shellId}": {
+            "get": {
+                "summary": "A specific AAS ",
+                "description": "A specific AAS ",
+                "operationId": "access-shell-id",
+                "parameters": [
+                    {
+                        "name": "shellId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": ""
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "null"
+                    }
+                }
+            }
+        },
+        "/submodels": {
+            "get": {
+                "summary": "All submodels",
+                "description": "All submodels",
+                "operationId": "access-submodels",
+                "responses": {
+                    "200": {
+                        "description": "null"
+                    }
+                }
+            }
+        },
+        "/submodels/{submodelId}": {
+            "get": {
+                "summary": "A specific submodel",
+                "description": "A specific submodel",
+                "operationId": "access-submodel-id",
+                "parameters": [
+                    {
+                        "name": "submodelId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": ""
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "null"
+                    }
+                }
+            }
+        },
+        "/concept-descriptions": {
+            "get": {
+                "summary": "All concept description",
+                "description": "All concept description",
+                "operationId": "access-concept",
+                "responses": {
+                    "200": {
+                        "description": "null"
+                    }
+                }
+            }
+        },
+        "/concept-descriptions/{conceptDescriptionId}": {
+            "get": {
+                "summary": "A specific concept description",
+                "description": "A specific concept description",
+                "operationId": "access-conceptdescription-id",
+                "parameters": [
+                    {
+                        "name": "conceptDescriptionId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": ""
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "null"
+                    }
+                }
+            }
+        },
+        "/serialization": {
+            "get": {
+                "summary": "Serialize AAS",
+                "description": "Serialize AAS",
+                "operationId": "serialize-aas",
+                "responses": {
+                    "200": {
+                        "description": "null"
+                    }
+                }
+            }
+        },
+        "/shells/{shellId}/submodel-refs": {
+            "get": {
+                "summary": "Submodel-Refs",
+                "operationId": "submodel-refs",
+                "parameters": [
+                    {
+                        "name": "shellId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": ""
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/shells/{shellId}/asset-information": {
+            "get": {
+                "summary": "Asset-Information",
+                "operationId": "asset-information",
+                "parameters": [
+                    {
+                        "name": "shellId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": ""
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/submodels/{submodelIdentifier}/submodel-elements/{idShortPath}/{path}": {
+            "get": {
+                "summary": "SubmodelElementPath",
+                "operationId": "generalinformation",
+                "parameters": [
+                    {
+                        "name": "submodelIdentifier",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": ""
+                        }
+                    },
+                    {
+                        "name": "idShortPath",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": ""
+                        }
+                    },
+                    {
+                        "name": "path",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": ""
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/submodels/{submodelIdentifier}/submodel-elements/{idShortPath}": {
+            "get": {
+                "summary": "SubmodelElement",
+                "operationId": "submodelelement",
+                "parameters": [
+                    {
+                        "name": "submodelIdentifier",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": ""
+                        }
+                    },
+                    {
+                        "name": "idShortPath",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": ""
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                }
+            }
+        }
+    },
+    "components": {}
+}

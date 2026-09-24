@@ -1,0 +1,48 @@
+{
+    "openapi": "3.0.1",
+    "info": {
+        "title": "SmartData AAS Submodel Registry",
+        "description": "Provides GET endpoints for submodel descriptors.",
+        "version": "1.0"
+    },
+    "servers": [
+        {
+            "url": "https://c1.api.wago.com/smartdata-aas-submodel-registry"
+        }
+    ],
+    "paths": {
+        "/submodel-descriptors": {
+            "get": {
+                "summary": "All Submodel descriptors",
+                "operationId": "all-submodel-descriptors",
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/submodel-descriptors/{submodel-descriptor}": {
+            "get": {
+                "summary": "A specific submodel descriptor",
+                "operationId": "a-specific-submodel-descriptor",
+                "parameters": [
+                    {
+                        "name": "submodel-descriptor",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": ""
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                }
+            }
+        }
+    },
+    "components": {}
+}

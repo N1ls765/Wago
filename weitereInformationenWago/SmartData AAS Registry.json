@@ -1,0 +1,80 @@
+{
+    "openapi": "3.0.1",
+    "info": {
+        "title": "SmartData AAS Registry",
+        "description": "Provides GET endpoints for AAS descriptors.",
+        "version": "1.0"
+    },
+    "servers": [
+        {
+            "url": "https://c1.api.wago.com/smartdata-aas-registry"
+        }
+    ],
+    "paths": {
+        "/api/v3.0/shell-descriptors": {
+            "get": {
+                "summary": "All Shell-Descriptors",
+                "operationId": "access-shell-descriptors",
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v3.0/shell-descriptors/{id}": {
+            "get": {
+                "summary": "A specific Shell-Descriptor",
+                "operationId": "a-specific-shell-descriptor",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": ""
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/shell-descriptors/{id}": {
+            "get": {
+                "summary": "A specific Shell-Descriptor (new)",
+                "operationId": "66fba19642812a403106e164",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": ""
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/shell-descriptors": {
+            "get": {
+                "summary": "All Shell-Descriptors (new)",
+                "operationId": "66fba1c0fc36563c545b05f6",
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                }
+            }
+        }
+    },
+    "components": {}
+}
