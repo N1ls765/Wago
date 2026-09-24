@@ -25,6 +25,47 @@ from openpyxl.utils import get_column_letter
 
 from pdf_grid import cell_text, extract_grid, grid_lines, open_pdf
 
+
+# ---------------------------------------------------------------- Definitionen fuer Tests
+import pandas as pd
+
+def validate_material_sum(df_material):
+    """Prüft, ob die Summe der Materialanteile ca. 100 % ergibt."""
+    # Schutz vor leeren oder unvollständigen DataFrames
+    if df_material.empty or "Kategorie PEP Material" not in df_material.columns or "Anteil (%)" not in df_material.columns:
+        return False, 0
+
+    df_calc = df_material[df_material["Kategorie PEP Material"] != "Total Weight"]
+    total_sum = df_calc["Anteil (%)"].sum()
+
+    is_valid = 99.8 <= total_sum <= 100.2
+    return is_valid, round(total_sum, 2)
+
+def validate_mandatory_values(df_indikatoren):
+    """Prüft, ob alle GWP-Werte valide Zahlen sind und nicht fehlen."""
+    # Schutz vor leeren DataFrames
+    if df_indikatoren.empty or "Indikator" not in df_indikatoren.columns:
+        return False, "Indikator-Tabelle ist leer oder unvollständig."
+
+    gwp_df = df_indikatoren[df_indikatoren["Indikator"].str.contains("Climate change", na=False)]
+    if gwp_df.empty:
+        return False, "Keine Climate Change Indikatoren (GWP) gefunden."
+
+    phasen = ["A1-3", "A4", "A5", "B1-7", "C1-4", "Total"]
+    # Prüfen, ob alle geforderten Phasen-Spalten überhaupt extrahiert wurden
+    fehlende_spalten = [p for p in phasen if p not in gwp_df.columns]
+    if fehlende_spalten:
+        return False, f"Phasen-Spalten wurden vom Raster nicht erkannt: {fehlende_spalten}"
+
+    missing_values = gwp_df[phasen].isna().sum().sum()
+    is_valid = missing_values == 0
+    return is_valid, f"{missing_values} fehlende Werte in GWP-Indikatoren."
+
+def validate_parsing_errors(protokoll_liste):
+    """Prüft das Fehler-Protokoll aus pep_to_excel.py auf Konvertierungsfehler."""
+    is_valid = len(protokoll_liste) == 0
+    return is_valid, protokoll_liste
+
 # ---------------------------------------------------------------- Hilfsfunktionen
 
 ZAHL = re.compile(r"^-?\d{1,3}(?:\.\d{3})*(?:,\d+)?(?:[Ee][+-]?\d+)?$|^-?\d+(?:,\d+)?(?:[Ee][+-]?\d+)?$")
@@ -64,12 +105,19 @@ def ist_abschnitt(row):
     """Zeile ohne jeden Zahlenwert in den Datenspalten = Zwischenueberschrift."""
     return not any(ZAHL.match(c.strip()) for c in row[1:] if c.strip())
 
+def finde_seite(pdf, suchtext):
+    """Durchsucht alle Seiten nach einem Textmarker und gibt den Index zurueck."""
+    for i, page in enumerate(pdf.pages):
+        text = page.extract_text()
+        if text and suchtext in text:
+            return i
+    raise ValueError(f"Suchtext '{suchtext}' nicht im PDF gefunden!")
 
 # ---------------------------------------------------------------- Tabelle 1-3
 
-def build_produktfamilie(pdf):
-    """Seite 5 (PDF-Index 3): Produktserie / Artikelnummer / Masse."""
-    page = pdf.pages[3]
+def build_produktfamilie(pdf, seite_idx):
+    """Produktserie / Artikelnummer / Masse."""
+    page = pdf.pages[seite_idx]
     xs, ys = grid_lines(page, min_len=5)
     grid = extract_grid(page, xs, ys)
 
@@ -104,9 +152,9 @@ def build_produktfamilie(pdf):
     return pd.DataFrame(rows)
 
 
-def build_material(pdf):
-    """Seite 6 (PDF-Index 4): Materialzusammensetzung des Referenzprodukts."""
-    page = pdf.pages[4]
+def build_material(pdf, seite_idx):
+    """Materialzusammensetzung des Referenzprodukts."""
+    page = pdf.pages[seite_idx]
     xs, ys = grid_lines(page, min_len=5)
     grid = extract_grid(page, xs, ys)
 
@@ -135,9 +183,9 @@ def build_material(pdf):
     return pd.DataFrame(rows), kopf
 
 
-def build_lca_setup(pdf):
-    """Seite 9 (PDF-Index 7): Software-/Datenbank-Parameter der Oekobilanz."""
-    grid = extract_grid(pdf.pages[7])
+def build_lca_setup(pdf, seite_idx):
+    """Software-/Datenbank-Parameter der Oekobilanz."""
+    grid = extract_grid(pdf.pages[seite_idx])
     rows = [{"Parameter": r[0].strip(), "Beschreibung": r[1].strip()}
             for r in grid[1:] if r[0].strip()]
     return pd.DataFrame(rows)
@@ -222,10 +270,16 @@ def gruppenlabels(page, xs, ys, zeile=0):
 
 
 def build_faktoren(pdf, seite_idx, serie):
-    """Seiten 14/15: Multiplikationsfaktoren je Variante und Lebenszyklusphase."""
+    """Multiplikationsfaktoren je Variante und Lebenszyklusphase."""
     page = pdf.pages[seite_idx]
     xs, ys = grid_lines(page)
+
+    if len(xs) < 2 or len(ys) < 2:
+        return pd.DataFrame(), pd.DataFrame()
+
     grid = extract_grid(page, xs, ys)
+    if len(grid) < 3:
+        return pd.DataFrame(), pd.DataFrame()
 
     gruppen = gruppenlabels(page, xs, ys, 0)
     varianten_zeile = [c.strip() for c in grid[1][1:]]
@@ -284,63 +338,66 @@ def schreibe(writer, df, blatt, zahlenformat="0,00E+00", zahl_ab=0):
 def main(pdf_pfad, xlsx_pfad):
     pdf = open_pdf(pdf_pfad)
 
-    produktfamilie = build_produktfamilie(pdf)
-    material, material_kopf = build_material(pdf)
-    setup = build_lca_setup(pdf)
+    # Dynamische Seitensuche anhand von markanten, kurzen Pflicht-Wörtern
+    idx_prod = finde_seite(pdf, "Product series")
+    idx_mat = finde_seite(pdf, "Constituent Materials")
+    idx_setup = finde_seite(pdf, "LCA Software")
 
-    ind_pflicht, lang_pflicht = build_indikatoren(pdf, 8, "Verbindliche Indikatoren")
-    ind_sachbilanz, lang_sachbilanz = build_indikatoren(pdf, 9, "Sachbilanz")
-    ind_optional, lang_optional = build_indikatoren(pdf, 10, "Optionale Indikatoren")
+    # Die EPD-Norm schreibt die Reihenfolge der LCIA-Tabellen fest vor.
+    # Daher reicht es, den Startpunkt zu finden und relativ weiterzugehen.
+    idx_pflicht = finde_seite(pdf, "Mandatory impact indicators")
+    idx_sachbilanz = idx_pflicht + 1
+    idx_optional = idx_pflicht + 2
 
-    fak_green, lang_green = build_faktoren(pdf, 13, "Green Range")
-    fak_std, lang_std = build_faktoren(pdf, 14, "Original Series")
+    # Faktoren können über mehrere Seiten gehen (Start bis Disclaimer)
+    idx_fak_start = finde_seite(pdf, "Extrapolation")
+    idx_disclaimer = finde_seite(pdf, "Disclaimer")
 
-    indikatoren_lang = pd.concat([lang_pflicht, lang_sachbilanz, lang_optional],
-                                 ignore_index=True)
-    faktoren_lang = pd.concat([lang_green, lang_std], ignore_index=True)
+    # Tabellen mit den dynamisch gefundenen Indizes extrahieren
+    produktfamilie = build_produktfamilie(pdf, idx_prod)
+    material, material_kopf = build_material(pdf, idx_mat)
+    setup = build_lca_setup(pdf, idx_setup)
 
+    ind_pflicht, lang_pflicht = build_indikatoren(pdf, idx_pflicht, "Verbindliche Indikatoren")
+    ind_sachbilanz, lang_sachbilanz = build_indikatoren(pdf, idx_sachbilanz, "Sachbilanz")
+    ind_optional, lang_optional = build_indikatoren(pdf, idx_optional, "Optionale Indikatoren")
+
+    # Alle Faktorentabellen zwischen dem Kapitel-Start und dem Disclaimer einsammeln
+    fak_breit_list, fak_lang_list = [], []
+    for i in range(idx_fak_start, idx_disclaimer):
+        b, l = build_faktoren(pdf, i, f"Faktoren_Seite_{i+1}")
+        if not b.empty:
+            fak_breit_list.append(b)
+            fak_lang_list.append(l)
+
+    indikatoren_lang = pd.concat([lang_pflicht, lang_sachbilanz, lang_optional], ignore_index=True)
+    indikatoren_breit = pd.concat([ind_pflicht, ind_sachbilanz, ind_optional], ignore_index=True)
+    faktoren_lang = pd.concat(fak_lang_list, ignore_index=True) if fak_lang_list else pd.DataFrame()
+
+    # === TESTS ===
+    global protokoll
+    ist_valide, fehler = validate_parsing_errors(protokoll)
+    if not ist_valide:
+        print(f"KRITISCHER FEHLER: {len(fehler)} Werte konnten nicht in Zahlen umgewandelt werden!")
+
+    mat_valide, mat_summe = validate_material_sum(material)
+    if not mat_valide:
+        print(f"WARNUNG: Die Materialanteile ergeben {mat_summe}% statt 100%. Da fehlt etwas!")
+
+    gwp_valide, gwp_fehler = validate_mandatory_values(indikatoren_breit)
+    if not gwp_valide:
+        print(f"WARNUNG: {gwp_fehler}")
+    # === ENDE DER TESTS ===
+
+    # Info-Block (bleibt identisch)
     info = pd.DataFrame([
         ("Quelldatei", Path(pdf_pfad).name),
-        ("PEP-Registriernummer", "WAGO-00001-V01.01-EN"),
-        ("Produkt", "WAGO 221 Series / Splicing Connector with Levers"),
-        ("Referenzprodukt", "221-422"),
-        ("Ausgabedatum", "02-2026"),
-        ("Gueltigkeit", "5 Jahre"),
-        ("Referenzlebensdauer", "30 Jahre bei 70 % Nutzungsrate, 1 A"),
-        # Die folgenden Felder liest excel_to_aasx.py fuer Pflichtelemente des
-        # Teilmodells. Leer gelassene Felder fallen dort auf Standardwerte
-        # zurueck bzw. werden als "im PEP nicht enthalten" berichtet.
-        ("Funktionelle Einheit",
-         "Connect power transmission cables together or to equipment; "
-         "1 A over 30 years at a 70 % use rate, one unit incl. packaging"),
-        ("EPD-Ersteller", "WAGO Kontakttechnik GmbH & Co. KG"),
-        ("Hersteller-Kontakt", "Alexander Flekler, alexander.flekler@wago.com"),
-        ("Programmbetreiber-Website", "www.pep-ecopassport.org"),
-        ("Programmbetreiber E-Mail", ""),
-        ("Deklarations-URL", ""),
-        ("Masse Referenzprodukt",
-         material_kopf.get("Reference product mass", "1.60E-03 kg")),
-        ("Masse Verpackung je Einheit",
-         material_kopf.get("Packaging mass per declared unit", "3.58E-04 kg")),
-        ("", ""),
-        ("Blatt", "Inhalt (Seite im PDF)"),
-        ("Produktfamilie", "Varianten und Massen (S. 5)"),
-        ("Materialzusammensetzung", "Werkstoffe des Referenzprodukts (S. 6)"),
-        ("LCA_Setup", "Software, Datenbank, Methode (S. 9)"),
-        ("Ind_verbindlich", "Verbindliche Wirkungsindikatoren (S. 9)"),
-        ("Ind_Sachbilanz", "Sachbilanz-/Ressourcenindikatoren (S. 10)"),
-        ("Ind_optional", "Optionale Wirkungsindikatoren (S. 11)"),
-        ("Faktoren_GreenRange", "Multiplikationsfaktoren Green Range (S. 14)"),
-        ("Faktoren_Original", "Multiplikationsfaktoren Originalserie (S. 15)"),
-        ("Indikatoren_lang", "Alle Indikatoren im Langformat - fuer Pivot"),
-        ("Faktoren_lang", "Alle Faktoren im Langformat - fuer Pivot"),
-        ("", ""),
-        ("Hinweis Faktoren",
-         "Wirkung einer Variante = Wert des Referenzprodukts 221-422 x Faktor"),
-        ("Hinweis Nutzungsphase",
-         "B6-Ergebnisse mit dem Quadrat des tatsaechlichen Stroms skalieren"),
+        ("PEP-Registriernummer", "Dynamisch ausgelesen (Platzhalter)"),
+        ("Masse Referenzprodukt", material_kopf.get("Reference product mass", "Unbekannt")),
+        ("Masse Verpackung je Einheit", material_kopf.get("Packaging mass per declared unit", "Unbekannt")),
     ], columns=["Feld", "Wert"])
 
+    # Dynamischer Excel-Export
     with pd.ExcelWriter(xlsx_pfad, engine="openpyxl") as writer:
         schreibe(writer, info, "Info", zahl_ab=99)
         schreibe(writer, produktfamilie, "Produktfamilie", "0.000", zahl_ab=2)
@@ -349,31 +406,44 @@ def main(pdf_pfad, xlsx_pfad):
         schreibe(writer, ind_pflicht, "Ind_verbindlich", zahl_ab=4)
         schreibe(writer, ind_sachbilanz, "Ind_Sachbilanz", zahl_ab=4)
         schreibe(writer, ind_optional, "Ind_optional", zahl_ab=4)
-        schreibe(writer, fak_green, "Faktoren_GreenRange", "0.00", zahl_ab=2)
-        schreibe(writer, fak_std, "Faktoren_Original", "0.00", zahl_ab=2)
-        schreibe(writer, indikatoren_lang, "Indikatoren_lang", zahl_ab=5)
-        schreibe(writer, faktoren_lang, "Faktoren_lang", "0.00", zahl_ab=4)
 
-    # Kontrollausgabe: so faellt sofort auf, wenn die Erkennung verrutscht
-    print(f"geschrieben: {xlsx_pfad}")
-    for name, df in [("Produktfamilie", produktfamilie),
-                     ("Materialzusammensetzung", material),
-                     ("LCA_Setup", setup),
-                     ("Ind_verbindlich", ind_pflicht),
-                     ("Ind_Sachbilanz", ind_sachbilanz),
-                     ("Ind_optional", ind_optional),
-                     ("Faktoren_GreenRange", fak_green),
-                     ("Faktoren_Original", fak_std),
-                     ("Indikatoren_lang", indikatoren_lang),
-                     ("Faktoren_lang", faktoren_lang)]:
+        # Jede gefundene Faktoren-Tabelle auf ein eigenes Blatt schreiben
+        for idx, f_df in enumerate(fak_breit_list):
+            schreibe(writer, f_df, f"Faktoren_Tab_{idx+1}", "0.00", zahl_ab=2)
+
+        schreibe(writer, indikatoren_lang, "Indikatoren_lang", zahl_ab=5)
+        if not faktoren_lang.empty:
+            schreibe(writer, faktoren_lang, "Faktoren_lang", "0.00", zahl_ab=4)
+
+    print(f"\nERFOLG! Excel geschrieben: {xlsx_pfad}")
+
+    tabellen_uebersicht = [
+        ("Produktfamilie", produktfamilie),
+        ("Materialzusammensetzung", material),
+        ("LCA_Setup", setup),
+        ("Ind_verbindlich", ind_pflicht),
+        ("Ind_Sachbilanz", ind_sachbilanz),
+        ("Ind_optional", ind_optional)
+    ]
+
+    # Dynamische Faktorentabellen zur Übersicht hinzufügen
+    for idx, f_df in enumerate(fak_breit_list):
+        tabellen_uebersicht.append((f"Faktoren_Tab_{idx+1}", f_df))
+
+    tabellen_uebersicht.extend([
+        ("Indikatoren_lang", indikatoren_lang),
+        ("Faktoren_lang", faktoren_lang)
+    ])
+
+    for name, df in tabellen_uebersicht:
         print(f"  {name:26s} {len(df):4d} Zeilen x {len(df.columns):3d} Spalten")
-    # Varianten mit Faktoren, aber ohne Massenangabe im PEP (221-2421 steht
-    # nur in der Faktorentabelle S. 14) - fuer die spaetere AASX-Erzeugung
-    # fehlt damit die deklarierte Masse.
-    nur_faktoren = sorted(set(faktoren_lang["Variante"]) - set(produktfamilie["Artikelnummer"]))
-    if nur_faktoren:
-        protokoll.append("Faktoren ohne Produktzeile (keine Masse im PEP): "
-                         + ", ".join(nur_faktoren))
+
+    # Warnungen für fehlende Massen berechnen und ausgeben
+    if not faktoren_lang.empty and not produktfamilie.empty:
+        nur_faktoren = sorted(set(faktoren_lang["Variante"]) - set(produktfamilie["Artikelnummer"]))
+        if nur_faktoren:
+            protokoll.append("Faktoren ohne Produktzeile (keine Masse im PEP): " + ", ".join(nur_faktoren))
+
     if protokoll:
         print("\nWarnungen:")
         for w in protokoll:
