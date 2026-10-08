@@ -1,6 +1,6 @@
 # Eigener AAS-Server (Eclipse BaSyx)
 
-Stellt die AASX-Pakete aus `../aasx` (Serie 221) und `../aasx_2273` (Serie 2273)
+Stellt die AASX-Pakete aus `../epd/221/aasx` (Serie 221) und `../epd/2273/aasx` (Serie 2273)
 über die standardisierte AAS-API bereit (IDTA Part 2, API v3.0) und bietet mit der
 BaSyx AAS Web UI ein Portal zum Durchklicken.
 
@@ -57,5 +57,5 @@ curl -o epd.pdf "http://localhost:8081/submodels/$ID/submodel-elements/epdDocume
 ```
 
 Dieselbe API bietet auch WAGOs SmartData-Dienst an (siehe
-`../weitereInformationenWago/SmartData AAS Env.json`). Die Oberfläche kann deshalb
+`../wago_unterlagen/SmartData AAS Env.json`). Die Oberfläche kann deshalb
 später über `VITE_AAS_URL` auf den echten Dienst umgestellt werden.
