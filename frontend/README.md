@@ -36,6 +36,10 @@ Im Dev-Betrieb leitet Vite alle Anfragen an `/aas/...` an den AAS-Server weiter
 
 PDF und Produktbild werden direkt über `.../submodel-elements/<pfad>/attachment` verlinkt.
 
+Verpackungseinheiten (VPE/UVPE) und Shop-Links stehen nicht in der EPD und deshalb
+nicht in der AAS. Sie kommen aus `src/shop.ts` (Stand WAGO-Shop 08.10.2026) und
+müssen bei neuen Artikeln dort ergänzt werden.
+
 Andere Server-Adresse: `.env.example` nach `.env.local` kopieren und anpassen.
 
 ## Bekannte Lücken in den Daten
