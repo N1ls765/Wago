@@ -110,6 +110,8 @@ function Explorer({ produkte }: { produkte: Produkt[] }) {
   const [filter, setFilter] = useState('Alle')
   const [auswahl, setAuswahl] = useState(start.nummer)
   const [menge, setMenge] = useState(standardMenge(start.nummer))
+  const [ansicht, setAnsicht] =
+      useState<'grafik' | 'tabelle'>('grafik')
 
   const [vergleichA, setVergleichA] = useState(start.nummer)
   const [vergleichB, setVergleichB] = useState(
@@ -645,10 +647,37 @@ function Explorer({ produkte }: { produkte: Produkt[] }) {
             </div>
 
             <div className="panel">
-              <h3>
-                Lebenszyklusphasen
-              </h3>
+              <div className="ansicht-kopf">
+                <h3>
+                  {ansicht === 'grafik'
+                      ? 'Lebenszyklusphasen'
+                      : 'Detaillierte Ergebnistabelle'}
+                </h3>
 
+                <div
+                    className="ansicht-umschalter"
+                    role="group"
+                    aria-label="Darstellung wählen"
+                >
+                  <button
+                      className={ansicht === 'grafik' ? 'active' : ''}
+                      aria-pressed={ansicht === 'grafik'}
+                      onClick={() => setAnsicht('grafik')}
+                  >
+                    Grafik
+                  </button>
+
+                  <button
+                      className={ansicht === 'tabelle' ? 'active' : ''}
+                      aria-pressed={ansicht === 'tabelle'}
+                      onClick={() => setAnsicht('tabelle')}
+                  >
+                    Tabelle
+                  </button>
+                </div>
+              </div>
+
+              {ansicht === 'grafik' && (
               <div className="chart">
                 {phasenErgebnisse.map(p => (
                     <div
@@ -679,11 +708,9 @@ function Explorer({ produkte }: { produkte: Produkt[] }) {
                     </div>
                 ))}
               </div>
+              )}
 
-              <h3>
-                Detaillierte Ergebnistabelle
-              </h3>
-
+              {ansicht === 'tabelle' && (
               <div className="table-scroll">
                 <table>
                   <thead>
@@ -715,6 +742,7 @@ function Explorer({ produkte }: { produkte: Produkt[] }) {
                   </tbody>
                 </table>
               </div>
+              )}
 
               <p className="hint">
                 Werte aus dem EPD-Teilmodell der
