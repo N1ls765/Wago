@@ -1,32 +1,53 @@
-# React + TypeScript + Vite
+# WAGO EPD Explorer (Oberfläche)
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React + TypeScript + Vite. Die EPD-Daten kommen live vom AAS-Server
+(`../aas-server`), nicht mehr aus fest eingetragenen Werten.
 
-Currently, two official plugins are available:
+## Starten
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+1. AAS-Server starten (siehe `../aas-server/README.md`)
+2. Oberfläche starten:
 
-## React Compiler
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+3. http://localhost:5173 öffnen
 
-## Expanding the Oxlint configuration
+Ohne lokales Node.js geht es auch per Docker:
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+docker run --rm -it -p 5173:5173 -e AAS_PROXY_TARGET=http://host.docker.internal:8081 -v "$PWD":/app -v wago_fe_nm:/app/node_modules -w /app node:22 sh -c "npm ci && npx vite --host 0.0.0.0"
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## Wie die Daten geladen werden
+
+Im Dev-Betrieb leitet Vite alle Anfragen an `/aas/...` an den AAS-Server weiter
+(`vite.config.ts`). Ablauf in `src/aas/epd.ts`:
+
+1. `GET /shells`: alle Verwaltungsschalen
+2. je Teilmodell-Referenz `GET /submodels/{id}/$metadata`: ist die `semanticId`
+   `https://admin-shell.io/idta/EPD/EPDTypeIII/1/0`?
+3. für das EPD-Teilmodell `GET /submodels/{id}/$value`: Werte ohne Metadaten
+4. GWP-total je Lebenszyklusphase summieren (B1–B7 → „B1-B7“, C1 + C2-C4 →
+   „C1-C4“); Modul D wird separat ausgewiesen
+
+PDF und Produktbild werden direkt über `.../submodel-elements/<pfad>/attachment` verlinkt.
+
+Andere Server-Adresse: `.env.example` nach `.env.local` kopieren und anpassen.
+
+## Bekannte Lücken in den Daten
+
+- **Klemmstellen** stehen bei Serie 221 nicht im Teilmodell. Bis die Skripte sie
+  liefern, gilt `KLEMMEN_FALLBACK` in `src/aas/epd.ts`.
+- **Green Range** wird aus `productDescription` erkannt (Text „green range“).
+- **Produktbild** gibt es bisher nur bei 221-422.
+
+## Prüfen
+
+```bash
+npm run build   # Typprüfung + Build
+npm run lint
+```

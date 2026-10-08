@@ -1,197 +1,121 @@
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import './App.css'
+import { AAS_URL } from './aas/client'
+import {
+  ladeProdukte,
+  phasen,
+  phasenNamen,
+  type Produkt
+} from './aas/epd'
 
 // =====================================================
 // WAGO EPD EXPLORER
-// Interaktives Mock-up mit lokalen EPD-Daten
-// Spätere Datenquelle: WAGO AAS
+// Datenquelle: eigener AAS-Server (../aas-server),
+// befuellt mit den AASX-Paketen aus den Skripten
 // =====================================================
-
-type Phase = 'A1-A3' | 'A4' | 'A5' | 'B1-B7' | 'C1-C4'
-
-type Produkt = {
-  nummer: string
-  typ: 'Standard' | 'Green Range'
-  klemmen: number
-  gesamtFaktor: number
-  phasenFaktoren: Record<Phase, number>
-}
-
-const referenz = {
-  nummer: '221-422',
-  gwp: 0.0856,
-  einheit: 'kg CO₂-Äq.',
-  phasen: {
-    'A1-A3': 0.0124,
-    'A4': 0.00057,
-    'A5': 0.00068,
-    'B1-B7': 0.0702,
-    'C1-C4': 0.00169
-  }
-}
-
-const phasen: Phase[] = [
-  'A1-A3', 'A4', 'A5', 'B1-B7', 'C1-C4'
-]
-
-const phasenNamen: Record<Phase, string> = {
-  'A1-A3': 'Herstellung',
-  'A4': 'Transport',
-  'A5': 'Installation',
-  'B1-B7': 'Nutzung',
-  'C1-C4': 'Entsorgung'
-}
-
-// Gerundete Hochrechnungsfaktoren aus der
-// bereitgestellten WAGO-221-EPD, Seiten 14–15.
-// Die Daten werden später durch AAS-Werte ersetzt.
-
-const produkte: Produkt[] = [
-  {
-    nummer: '221-412',
-    typ: 'Standard',
-    klemmen: 2,
-    gesamtFaktor: 1.01,
-    phasenFaktoren: {
-      'A1-A3': 1.07,
-      'A4': 0.96,
-      'A5': 1.00,
-      'B1-B7': 1.00,
-      'C1-C4': 0.96
-    }
-  },
-  {
-    nummer: '221-413',
-    typ: 'Standard',
-    klemmen: 3,
-    gesamtFaktor: 1.10,
-    phasenFaktoren: {
-      'A1-A3': 1.58,
-      'A4': 1.47,
-      'A5': 1.82,
-      'B1-B7': 1.00,
-      'C1-C4': 1.37
-    }
-  },
-  {
-    nummer: '221-415',
-    typ: 'Standard',
-    klemmen: 5,
-    gesamtFaktor: 1.28,
-    phasenFaktoren: {
-      'A1-A3': 2.57,
-      'A4': 2.46,
-      'A5': 3.47,
-      'B1-B7': 1.00,
-      'C1-C4': 2.17
-    }
-  },
-  {
-    nummer: '221-420',
-    typ: 'Standard',
-    klemmen: 10,
-    gesamtFaktor: 1.69,
-    phasenFaktoren: {
-      'A1-A3': 4.88,
-      'A4': 4.67,
-      'A5': 5.99,
-      'B1-B7': 1.00,
-      'C1-C4': 3.95
-    }
-  },
-  {
-    nummer: '221-422',
-    typ: 'Green Range',
-    klemmen: 2,
-    gesamtFaktor: 1.00,
-    phasenFaktoren: {
-      'A1-A3': 1.00,
-      'A4': 1.00,
-      'A5': 1.00,
-      'B1-B7': 1.00,
-      'C1-C4': 1.00
-    }
-  },
-  {
-    nummer: '221-423',
-    typ: 'Green Range',
-    klemmen: 3,
-    gesamtFaktor: 1.09,
-    phasenFaktoren: {
-      'A1-A3': 1.46,
-      'A4': 1.49,
-      'A5': 1.82,
-      'B1-B7': 1.00,
-      'C1-C4': 1.41
-    }
-  },
-  {
-    nummer: '221-425',
-    typ: 'Green Range',
-    klemmen: 5,
-    gesamtFaktor: 1.26,
-    phasenFaktoren: {
-      'A1-A3': 2.39,
-      'A4': 2.49,
-      'A5': 3.49,
-      'B1-B7': 1.00,
-      'C1-C4': 2.23
-    }
-  },
-  {
-    nummer: '221-430',
-    typ: 'Green Range',
-    klemmen: 10,
-    gesamtFaktor: 1.65,
-    phasenFaktoren: {
-      'A1-A3': 4.61,
-      'A4': 4.79,
-      'A5': 6.03,
-      'B1-B7': 1.00,
-      'C1-C4': 4.12
-    }
-  },
-  {
-    nummer: '221-2411',
-    typ: 'Standard',
-    klemmen: 2,
-    gesamtFaktor: 1.14,
-    phasenFaktoren: {
-      'A1-A3': 1.85,
-      'A4': 1.46,
-      'A5': 1.60,
-      'B1-B7': 1.00,
-      'C1-C4': 1.31
-    }
-  }
-]
 
 const format = (wert: number, stellen = 5) =>
     wert.toLocaleString('de-DE', {
       maximumFractionDigits: stellen
     })
 
-function findeProdukt(nummer: string): Produkt {
-  return produkte.find(p => p.nummer === nummer)!
+const formatDatum = (iso: string) =>
+    iso
+        ? new Date(iso).toLocaleDateString('de-DE', {
+          month: 'long',
+          year: 'numeric'
+        })
+        : '–'
+
+const verifizierungNamen: Record<string, string> = {
+  External: 'Extern',
+  ThirdPartyVerification: 'Extern (Drittprüfung)',
+  Internal: 'Intern'
 }
 
 function berechneGWP(
     produkt: Produkt,
     menge: number
 ): number {
-  return referenz.gwp * produkt.gesamtFaktor * menge
+  return produkt.gwpProStueck * menge
 }
 
 function App() {
+  const [produkte, setProdukte] = useState<Produkt[] | null>(null)
+  const [fehler, setFehler] = useState<string | null>(null)
+
+  useEffect(() => {
+    ladeProdukte()
+        .then(setProdukte)
+        .catch((e: Error) => setFehler(e.message))
+  }, [])
+
+  if (fehler) {
+    return (
+        <div className="app">
+          <main>
+            <div className="empty-state">
+              <h3>AAS-Server nicht erreichbar</h3>
+              <p className="error">{fehler}</p>
+              <p className="hint">
+                Läuft der Server? Im Ordner aas-server:
+                {' '}<code>docker compose up -d</code>
+              </p>
+            </div>
+          </main>
+        </div>
+    )
+  }
+
+  if (produkte === null) {
+    return (
+        <div className="app">
+          <main>
+            <div className="empty-state">
+              EPD-Daten werden vom AAS-Server geladen …
+            </div>
+          </main>
+        </div>
+    )
+  }
+
+  if (produkte.length === 0) {
+    return (
+        <div className="app">
+          <main>
+            <div className="empty-state">
+              Der AAS-Server enthält keine EPD-Teilmodelle.
+            </div>
+          </main>
+        </div>
+    )
+  }
+
+  return <Explorer produkte={produkte} />
+}
+
+function Explorer({ produkte }: { produkte: Produkt[] }) {
+  const start =
+      produkte.find(p => p.nummer === '221-422') ?? produkte[0]
+
   const [suche, setSuche] = useState('')
+  const [serienFilter, setSerienFilter] = useState('Alle')
   const [filter, setFilter] = useState('Alle')
-  const [auswahl, setAuswahl] = useState('221-422')
+  const [auswahl, setAuswahl] = useState(start.nummer)
   const [menge, setMenge] = useState('100')
 
-  const [vergleichA, setVergleichA] = useState('221-422')
-  const [vergleichB, setVergleichB] = useState('221-425')
+  const [vergleichA, setVergleichA] = useState(start.nummer)
+  const [vergleichB, setVergleichB] = useState(
+      (produkte.find(p => p.nummer !== start.nummer) ?? start).nummer
+  )
   const [vergleichMenge, setVergleichMenge] = useState('100')
+
+  const serien = [...new Set(produkte.map(p => p.serie))]
+
+  function findeProdukt(nummer: string): Produkt {
+    return produkte.find(p => p.nummer === nummer) ?? produkte[0]
+  }
 
   const produkt = findeProdukt(auswahl)
 
@@ -209,26 +133,33 @@ function App() {
       berechneGWP(produkt, 1)
 
   const sichtbareProdukte = produkte.filter(p => {
+    const begriff = suche.trim().toLowerCase()
     const passtSuche =
-        p.nummer.includes(suche.trim()) ||
-        p.typ.toLowerCase().includes(suche.toLowerCase())
+        p.nummer.includes(begriff) ||
+        p.typ.toLowerCase().includes(begriff) ||
+        p.name.toLowerCase().includes(begriff)
+
+    const passtSerie =
+        serienFilter === 'Alle' || p.serie === serienFilter
 
     const passtFilter =
         filter === 'Alle' || p.typ === filter
 
-    return passtSuche && passtFilter
+    return passtSuche && passtSerie && passtFilter
   })
 
-  const phasenErgebnisse = phasen.map(phase => ({
-    phase,
-    name: phasenNamen[phase],
-    faktor: produkt.phasenFaktoren[phase],
-    wert: gueltigeMenge
-        ? referenz.phasen[phase] *
-        produkt.phasenFaktoren[phase] *
-        anzahl
-        : 0
-  }))
+  const phasenErgebnisse = phasen.map(phase => {
+    const proStueck = produkt.phasen[phase]
+
+    return {
+      phase,
+      name: phasenNamen[phase],
+      proStueck,
+      wert: gueltigeMenge && proStueck !== null
+          ? proStueck * anzahl
+          : 0
+    }
+  })
 
   const maxPhase = Math.max(
       ...phasenErgebnisse.map(p => p.wert),
@@ -260,6 +191,20 @@ function App() {
       0.000001
   )
 
+  const klemmenText = (p: Produkt) =>
+      p.klemmen === null
+          ? ''
+          : ` · ${p.klemmen} Klemmstellen`
+
+  const produktOptionen = produkte.map(p => (
+      <option
+          key={p.nummer}
+          value={p.nummer}
+      >
+        WAGO {p.nummer} – {p.typ}
+      </option>
+  ))
+
   function waehleProdukt(nummer: string) {
     setAuswahl(nummer)
 
@@ -286,8 +231,8 @@ function App() {
             <a href="#dokumente">Dokumentation</a>
           </nav>
 
-          <span className="mock-badge">
-          MOCK-UP
+          <span className="mock-badge" title={AAS_URL}>
+          LIVE · AAS
         </span>
         </header>
 
@@ -298,7 +243,7 @@ function App() {
           <section className="hero">
             <div className="hero-content">
             <span className="eyebrow">
-              WAGO · SERIE 221
+              WAGO · SERIE {serien.join(' / ')}
             </span>
 
               <h1>
@@ -308,7 +253,7 @@ function App() {
               </h1>
 
               <p>
-                Wähle ein Produkt der WAGO-Serie 221,
+                Wähle ein WAGO-Produkt,
                 gib deine gewünschte Stückzahl ein
                 und berechne die Umweltwirkungen
                 automatisch.
@@ -323,14 +268,14 @@ function App() {
             </div>
 
             <div className="hero-stat">
-              <span>Referenzprodukt 221-422</span>
-              <strong>0,0856</strong>
-              <span>kg CO₂-Äq. pro Stück</span>
+              <span>Ausgewählt: WAGO {produkt.nummer}</span>
+              <strong>{format(wertProStueck, 4)}</strong>
+              <span>{produkt.einheit} pro Stück</span>
 
               <div className="hero-stat-line" />
 
               <small>
-                Datengrundlage: WAGO-221-EPD
+                Datengrundlage: {produkt.dokument.kennung}
               </small>
             </div>
           </section>
@@ -339,18 +284,18 @@ function App() {
 
           <div className="stats">
             <div className="stat-card">
-              <strong>9</strong>
+              <strong>{produkte.length}</strong>
               <span>Produktvarianten</span>
             </div>
 
             <div className="stat-card">
-              <strong>5</strong>
+              <strong>{phasen.length}</strong>
               <span>Lebenszyklusgruppen</span>
             </div>
 
             <div className="stat-card">
-              <strong>221</strong>
-              <span>WAGO-Produktserie</span>
+              <strong>{serien.length}</strong>
+              <span>WAGO-Produktserien</span>
             </div>
           </div>
 
@@ -363,12 +308,12 @@ function App() {
                 PRODUKTÜBERSICHT
               </span>
 
-                <h2>WAGO Serie 221</h2>
+                <h2>WAGO Verbindungsklemmen</h2>
 
                 <p>
                   Wähle deine Produktvariante.
-                  Die verfügbaren EPD-Daten werden
-                  automatisch übernommen.
+                  Die EPD-Daten kommen direkt
+                  aus der Verwaltungsschale (AAS).
                 </p>
               </div>
 
@@ -384,6 +329,19 @@ function App() {
                   value={suche}
                   onChange={e => setSuche(e.target.value)}
               />
+
+              <select
+                  aria-label="Produktserie filtern"
+                  value={serienFilter}
+                  onChange={e => setSerienFilter(e.target.value)}
+              >
+                <option value="Alle">Alle Serien</option>
+                {serien.map(s => (
+                    <option key={s} value={s}>
+                      Serie {s}
+                    </option>
+                ))}
+              </select>
 
               <select
                   aria-label="Produktgruppe filtern"
@@ -427,7 +385,7 @@ function App() {
 
                     <div className="produkt-bild">
                       <div className="connector">
-                        <strong>{p.klemmen}</strong>
+                        <strong>{p.klemmen ?? '–'}</strong>
                         <span>Klemmstellen</span>
                       </div>
                     </div>
@@ -435,7 +393,7 @@ function App() {
                     <h3>WAGO {p.nummer}</h3>
 
                     <p>
-                      Serie 221 · {p.typ}
+                      Serie {p.serie} · {p.typ}
                     </p>
 
                     <span className="produkt-link">
@@ -487,14 +445,7 @@ function App() {
                     value={auswahl}
                     onChange={e => setAuswahl(e.target.value)}
                 >
-                  {produkte.map(p => (
-                      <option
-                          key={p.nummer}
-                          value={p.nummer}
-                      >
-                        WAGO {p.nummer} – {p.typ}
-                      </option>
-                  ))}
+                  {produktOptionen}
                 </select>
 
                 <label htmlFor="menge">
@@ -539,19 +490,16 @@ function App() {
                   </strong>
 
                   <p>
-                    Referenzprodukt: WAGO 221-422
+                    EPD: {produkt.dokument.kennung}
                   </p>
 
                   <p>
-                    Variantenfaktor: {format(
-                      produkt.gesamtFaktor,
-                      2
-                  )}
+                    Teilmodell: {produkt.submodelId}
                   </p>
 
                   <p>
-                    Nutzungsannahme: 1 A
-                    gemäß bereitgestellter EPD
+                    Indikator: GWP-total, Module
+                    {' '}A1–C4 (ohne Modul D)
                   </p>
                 </div>
               </div>
@@ -564,8 +512,8 @@ function App() {
                 <h3>WAGO {produkt.nummer}</h3>
 
                 <p>
-                  {produkt.typ} ·
-                  {' '}{produkt.klemmen} Klemmstellen
+                  Serie {produkt.serie} · {produkt.typ}
+                  {klemmenText(produkt)}
                 </p>
 
                 <div className="main-result">
@@ -580,7 +528,7 @@ function App() {
                   </strong>
 
                   <span>
-                  kg CO₂-Äq.
+                  {produkt.einheit}
                 </span>
                 </div>
 
@@ -589,7 +537,7 @@ function App() {
 
                   <strong>
                     {format(wertProStueck, 6)}
-                    {' '}kg CO₂-Äq.
+                    {' '}{produkt.einheit}
                   </strong>
                 </div>
 
@@ -604,9 +552,7 @@ function App() {
                 </div>
 
                 <div className="formula">
-                  {format(referenz.gwp, 4)}
-                  {' × '}
-                  {format(produkt.gesamtFaktor, 2)}
+                  {format(wertProStueck, 6)}
                   {' × '}
                   {gueltigeMenge
                       ? format(anzahl, 0)
@@ -662,7 +608,7 @@ function App() {
                       </div>
 
                       <strong>
-                        {gueltigeMenge
+                        {gueltigeMenge && p.proStueck !== null
                             ? format(p.wert, 6)
                             : '–'}
                       </strong>
@@ -680,8 +626,8 @@ function App() {
                   <tr>
                     <th>Phase</th>
                     <th>Bezeichnung</th>
-                    <th>Faktor</th>
-                    <th>kg CO₂-Äq.</th>
+                    <th>pro Stück</th>
+                    <th>{produkt.einheit}</th>
                   </tr>
                   </thead>
 
@@ -691,10 +637,12 @@ function App() {
                         <td>{p.phase}</td>
                         <td>{p.name}</td>
                         <td>
-                          {format(p.faktor, 2)}
+                          {p.proStueck === null
+                              ? 'nicht deklariert'
+                              : format(p.proStueck, 6)}
                         </td>
                         <td>
-                          {gueltigeMenge
+                          {gueltigeMenge && p.proStueck !== null
                               ? format(p.wert, 6)
                               : '–'}
                         </td>
@@ -705,12 +653,15 @@ function App() {
               </div>
 
               <p className="hint">
-                Die Berechnung erfolgt mit gerundeten
-                Faktoren aus der bereitgestellten EPD.
-                Gesamtwert und Phasenwerte werden
-                unabhängig hochgerechnet. Dadurch sind
-                Rundungsdifferenzen möglich.
-                Modul D ist nicht im Gesamtwert enthalten.
+                Werte aus dem EPD-Teilmodell der
+                Verwaltungsschale. Phasen, die in der EPD
+                feiner aufgeteilt sind (z. B. B1–B7),
+                werden summiert.
+                Modul D ist nicht im Gesamtwert enthalten
+                {produkt.modulD !== null && (
+                    <> (Modul D: {format(produkt.modulD, 6)}
+                      {' '}{produkt.einheit} pro Stück)</>
+                )}.
               </p>
             </div>
           </section>
@@ -728,8 +679,8 @@ function App() {
 
                 <p>
                   Vergleiche die Klimawirkung
-                  zweier Produkte der Serie 221
-                  für dieselbe Stückzahl.
+                  zweier Produkte für dieselbe
+                  Stückzahl.
                 </p>
               </div>
             </div>
@@ -749,14 +700,7 @@ function App() {
                           setVergleichA(e.target.value)
                       }
                   >
-                    {produkte.map(p => (
-                        <option
-                            key={p.nummer}
-                            value={p.nummer}
-                        >
-                          WAGO {p.nummer} – {p.typ}
-                        </option>
-                    ))}
+                    {produktOptionen}
                   </select>
                 </div>
 
@@ -772,14 +716,7 @@ function App() {
                           setVergleichB(e.target.value)
                       }
                   >
-                    {produkte.map(p => (
-                        <option
-                            key={p.nummer}
-                            value={p.nummer}
-                        >
-                          WAGO {p.nummer} – {p.typ}
-                        </option>
-                    ))}
+                    {produktOptionen}
                   </select>
                 </div>
 
@@ -819,8 +756,8 @@ function App() {
                   </h3>
 
                   <p>
-                    {produktA.typ} ·
-                    {' '}{produktA.klemmen} Klemmstellen
+                    {produktA.typ}
+                    {klemmenText(produktA)}
                   </p>
 
                   <div className="vergleich-wert">
@@ -829,7 +766,7 @@ function App() {
                         : '–'}
                   </div>
 
-                  <span>kg CO₂-Äq.</span>
+                  <span>{produktA.einheit}</span>
 
                   <div className="bar-track">
                     <div
@@ -854,8 +791,8 @@ function App() {
                   </h3>
 
                   <p>
-                    {produktB.typ} ·
-                    {' '}{produktB.klemmen} Klemmstellen
+                    {produktB.typ}
+                    {klemmenText(produktB)}
                   </p>
 
                   <div className="vergleich-wert">
@@ -864,7 +801,7 @@ function App() {
                         : '–'}
                   </div>
 
-                  <span>kg CO₂-Äq.</span>
+                  <span>{produktB.einheit}</span>
 
                   <div className="bar-track">
                     <div
@@ -888,7 +825,7 @@ function App() {
 
                     <strong>
                       {format(Math.abs(wertA - wertB))}
-                      {' '}kg CO₂-Äq.
+                      {' '}{produktA.einheit}
                     </strong>
                   </div>
               )}
@@ -918,19 +855,27 @@ function App() {
 
                 <p>
                   Informationen zur Datengrundlage
-                  der WAGO-Serie 221.
+                  von WAGO {produkt.nummer}.
                 </p>
               </div>
             </div>
 
             <div className="panel">
             <span className="tag green">
-              PEP ecopassport
+              {produkt.dokument.programmbetreiber || 'EPD'}
             </span>
 
               <h3 className="dokument-titel">
-                WAGO – Serie 221
+                {produkt.name || `WAGO – Serie ${produkt.serie}`}
               </h3>
+
+              {produkt.dokument.bildUrl && (
+                  <img
+                      className="produkt-foto"
+                      src={produkt.dokument.bildUrl}
+                      alt={`WAGO ${produkt.nummer}`}
+                  />
+              )}
 
               <div className="dokument-grid">
                 <div>
@@ -939,27 +884,27 @@ function App() {
                 </span>
 
                   <strong>
-                    WAGO-00001-V01.01-EN
+                    {produkt.dokument.kennung || '–'}
                   </strong>
                 </div>
 
                 <div>
                 <span>
-                  Referenzprodukt
+                  Ausgabedatum
                 </span>
 
                   <strong>
-                    221-422 Green Range
+                    {formatDatum(produkt.dokument.ausgabe)}
                   </strong>
                 </div>
 
                 <div>
                 <span>
-                  Ausgabedatum laut PDF
+                  Gültig bis
                 </span>
 
                   <strong>
-                    Februar 2026
+                    {formatDatum(produkt.dokument.gueltigBis)}
                   </strong>
                 </div>
 
@@ -969,17 +914,20 @@ function App() {
                 </span>
 
                   <strong>
-                    30 Jahre
+                    {produkt.dokument.nutzungsdauer
+                        ? `${produkt.dokument.nutzungsdauer} Jahre`
+                        : '–'}
                   </strong>
                 </div>
 
                 <div>
                 <span>
-                  Programmbetreiber
+                  Verifizierung
                 </span>
 
                   <strong>
-                    PEP ecopassport
+                    {verifizierungNamen[produkt.dokument.verifizierung]
+                        ?? (produkt.dokument.verifizierung || '–')}
                   </strong>
                 </div>
 
@@ -989,24 +937,24 @@ function App() {
                 </span>
 
                   <strong>
-                    Lokale Mock-Daten
+                    AAS-Server ({AAS_URL})
                   </strong>
                 </div>
               </div>
 
               <a
                   className="dokument-link"
-                  href="https://www.pep-ecopassport.org/"
+                  href={produkt.dokument.epdUrl}
                   target="_blank"
                   rel="noopener noreferrer"
               >
-                PEP ecopassport öffnen ↗
+                EPD als PDF öffnen ↗
               </a>
 
               <p className="hint">
-                Die Projektunterlagen befinden sich
-                teilweise noch in Entwicklung.
-                Dieses Mock-up stellt keine
+                Das PDF ist als Datei im EPD-Teilmodell
+                der Verwaltungsschale hinterlegt.
+                Diese Anwendung stellt keine
                 eigenständige EPD-Verifizierung dar.
               </p>
             </div>
@@ -1020,8 +968,8 @@ function App() {
             </strong>
 
             <p>
-              Hochschulprojekt · Mock-up mit lokalen
-              EPD-Daten · Keine Live-AAS-Anbindung
+              Hochschulprojekt · Daten aus der
+              Verwaltungsschale (AAS) · {produkte.length} Produkte
             </p>
           </footer>
 
