@@ -36,9 +36,10 @@ Im Dev-Betrieb leitet Vite alle Anfragen an `/aas/...` an den AAS-Server weiter
 
 PDF und Produktbild werden direkt über `.../submodel-elements/<pfad>/attachment` verlinkt.
 
-Verpackungseinheiten (VPE/UVPE) und Shop-Links stehen nicht in der EPD und deshalb
-nicht in der AAS. Sie kommen aus `src/shop.ts` (Stand WAGO-Shop 08.10.2026) und
-müssen bei neuen Artikeln dort ergänzt werden.
+Verpackungseinheiten (VPE/UVPE), Shop-Links und Produktfotos stehen nicht in der EPD
+und deshalb nicht in der AAS. Sie kommen aus `src/shop.ts` und
+`public/produktbilder/<Artikel>.jpg` (Hauptbild der Shop-Produktseite, 480 px,
+Stand WAGO-Shop 08.10.2026) und müssen bei neuen Artikeln dort ergänzt werden.
 
 Andere Server-Adresse: `.env.example` nach `.env.local` kopieren und anpassen.
 
@@ -46,7 +47,7 @@ Andere Server-Adresse: `.env.example` nach `.env.local` kopieren und anpassen.
 
 - **Klemmstellen** und **Green Range** gibt es nicht als eigene Felder. Beides wird
   aus `productDescription` gelesen („2 clamping units“, „green range“).
-- **Produktbild** gibt es bisher nur bei 221-422.
+- **Produktbild** liegt in der AAS bisher nur bei 221-422; sonst wird das Shop-Foto gezeigt.
 
 ## Prüfen
 
