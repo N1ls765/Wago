@@ -140,6 +140,7 @@ nav a:hover {
   display: inline-block;
   margin-top: 15px;
   padding: 14px 22px;
+  border: 0;
   background: #80ba38;
   color: #163923;
   border-radius: 9px;

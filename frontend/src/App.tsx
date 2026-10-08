@@ -50,12 +50,19 @@ function berechneGWP(
 function App() {
   const [produkte, setProdukte] = useState<Produkt[] | null>(null)
   const [fehler, setFehler] = useState<string | null>(null)
+  const [versuch, setVersuch] = useState(0)
 
   useEffect(() => {
     ladeProdukte()
         .then(setProdukte)
         .catch((e: Error) => setFehler(e.message))
-  }, [])
+  }, [versuch])
+
+  function erneutLaden() {
+    setFehler(null)
+    setProdukte(null)
+    setVersuch(v => v + 1)
+  }
 
   if (fehler) {
     return (
@@ -68,6 +75,12 @@ function App() {
                 Läuft der Server? Im Ordner aas-server:
                 {' '}<code>docker compose up -d</code>
               </p>
+              <button
+                  className="primary-button"
+                  onClick={erneutLaden}
+              >
+                Erneut versuchen
+              </button>
             </div>
           </main>
         </div>
