@@ -86,16 +86,6 @@ type EpdWerte = {
   }[]
 }
 
-// Anzahl Klemmstellen steht bei der Serie 2273 in der
-// Produktbeschreibung ("2 clamping units"), bei der Serie 221
-// bisher nicht. Bis die Skripte sie mit ins AASX schreiben,
-// gilt fuer 221 diese Tabelle (Werte aus dem bisherigen Mock-up).
-const KLEMMEN_FALLBACK: Record<string, number> = {
-  '221-412': 2, '221-413': 3, '221-415': 5, '221-420': 10,
-  '221-422': 2, '221-423': 3, '221-425': 5, '221-430': 10,
-  '221-2411': 2
-}
-
 function text(wert: Sprachtext | undefined): string {
   if (!wert || wert.length === 0) return ''
   const alle = Object.assign({}, ...wert) as Record<string, string>
@@ -104,7 +94,7 @@ function text(wert: Sprachtext | undefined): string {
 
 // stageCode aus dem Teilmodell -> Phasengruppe der Oberflaeche.
 // Die Serien liefern unterschiedlich feine Codes
-// (221: "C1-C4", 2273: "C1" + "C2-C4").
+// (z. B. "C1-C4" oder "C1" + "C2-C4").
 function phaseZu(stageCode: string): Phase | 'D' | null {
   if (/^A[1-3]/.test(stageCode)) return 'A1-A3'
   if (stageCode === 'A4') return 'A4'
@@ -149,6 +139,8 @@ function zuProdukt(submodelId: string, w: EpdWerte): Produkt {
       phasen.map(p => [p, summen[p]])
   ) as Record<Phase, number | null>
 
+  // Die Skripte schreiben die Anzahl in die Produktbeschreibung,
+  // z. B. "..., green range, 2 clamping units. ..."
   const klemmenText = beschreibung.match(/(\d+)\s+clamping unit/i)
 
   return {
@@ -157,9 +149,7 @@ function zuProdukt(submodelId: string, w: EpdWerte): Produkt {
     typ: /green range/i.test(beschreibung)
         ? 'Green Range'
         : 'Standard',
-    klemmen: klemmenText
-        ? Number(klemmenText[1])
-        : KLEMMEN_FALLBACK[nummer] ?? null,
+    klemmen: klemmenText ? Number(klemmenText[1]) : null,
     name: text(mp.productName),
     submodelId,
 

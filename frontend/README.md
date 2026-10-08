@@ -40,9 +40,8 @@ Andere Server-Adresse: `.env.example` nach `.env.local` kopieren und anpassen.
 
 ## Bekannte Lücken in den Daten
 
-- **Klemmstellen** stehen bei Serie 221 nicht im Teilmodell. Bis die Skripte sie
-  liefern, gilt `KLEMMEN_FALLBACK` in `src/aas/epd.ts`.
-- **Green Range** wird aus `productDescription` erkannt (Text „green range“).
+- **Klemmstellen** und **Green Range** gibt es nicht als eigene Felder. Beides wird
+  aus `productDescription` gelesen („2 clamping units“, „green range“).
 - **Produktbild** gibt es bisher nur bei 221-422.
 
 ## Prüfen
