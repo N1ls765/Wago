@@ -9,7 +9,7 @@ import {
   phasenNamen,
   type Produkt
 } from './aas/epd'
-import { shopUrl, verpackung } from './shop'
+import { produktbild, shopUrl, verpackung } from './shop'
 
 // =====================================================
 // WAGO EPD EXPLORER
@@ -125,6 +125,10 @@ function Explorer({ produkte }: { produkte: Produkt[] }) {
 
   const produkt = findeProdukt(auswahl)
   const pack = verpackung(produkt.nummer)
+
+  // Bild aus der AAS bevorzugen, sonst das Shop-Foto
+  const dokumentBild =
+      produkt.dokument.bildUrl ?? produktbild(produkt.nummer)
 
   const schnellwahl = pack
       ? [
@@ -408,16 +412,25 @@ function Explorer({ produkte }: { produkte: Produkt[] }) {
                     </div>
 
                     <div className="produkt-bild">
-                      <div className="connector">
-                        <strong>{p.klemmen ?? '–'}</strong>
-                        <span>Klemmstellen</span>
-                      </div>
+                      {produktbild(p.nummer) ? (
+                          <img
+                              src={produktbild(p.nummer)!}
+                              alt={`WAGO ${p.nummer}`}
+                              loading="lazy"
+                          />
+                      ) : (
+                          <div className="connector">
+                            <strong>{p.klemmen ?? '–'}</strong>
+                            <span>Klemmstellen</span>
+                          </div>
+                      )}
                     </div>
 
                     <h3>WAGO {p.nummer}</h3>
 
                     <p>
                       Serie {p.serie} · {p.typ}
+                      {klemmenText(p)}
                     </p>
 
                     <span className="produkt-link">
@@ -920,10 +933,10 @@ function Explorer({ produkte }: { produkte: Produkt[] }) {
                 {produkt.name || `WAGO – Serie ${produkt.serie}`}
               </h3>
 
-              {produkt.dokument.bildUrl && (
+              {dokumentBild && (
                   <img
                       className="produkt-foto"
-                      src={produkt.dokument.bildUrl}
+                      src={dokumentBild}
                       alt={`WAGO ${produkt.nummer}`}
                   />
               )}

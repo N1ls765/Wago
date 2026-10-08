@@ -31,6 +31,14 @@ export function verpackung(nummer: string): Verpackung | null {
   return VERPACKUNG[nummer] ?? null
 }
 
+// Produktfotos: Hauptbild der Shop-Produktseite (480 px),
+// abgelegt unter public/produktbilder/<Artikel>.jpg
+export function produktbild(nummer: string): string | null {
+  return nummer in VERPACKUNG
+      ? `${import.meta.env.BASE_URL}produktbilder/${nummer}.jpg`
+      : null
+}
+
 // Leitet auf die Produktseite im Shop weiter
 export function shopUrl(nummer: string): string {
   return `https://www.wago.com/de/p/${encodeURIComponent(nummer)}`
