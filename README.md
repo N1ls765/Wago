@@ -2,6 +2,8 @@
 
 Erzeugt aus Umweltproduktdeklarationen (EPD, bei WAGO: PEP ecopassport) AASX-Dateien mit dem Teilmodell *EPD Type III*, eine AASX je Artikel. Ein eigener AAS-Server (Eclipse BaSyx) stellt die Pakete über die AAS-API bereit, die Oberfläche *WAGO EPD Explorer* liest sie von dort.
 
+Voraussetzungen: Python 3.12+ (Skripte), Docker Desktop (AAS-Server), Node.js 22 (Oberfläche; alternativ per Docker, siehe `frontend/README.md`).
+
 Schnellstart Server + Oberfläche (Details: `aas-server/README.md`, `frontend/README.md`):
 
 ```bash

@@ -42,8 +42,26 @@ export function kodiereId(id: string): string {
       .replace(/=+$/, '')
 }
 
+// Ohne Zeitlimit wuerde eine haengende Anfrage die Seite
+// dauerhaft im Ladezustand lassen
+const ZEITLIMIT_MS = 15000
+
 async function holeJson<T>(pfad: string): Promise<T> {
-  const antwort = await fetch(AAS_URL + pfad)
+  let antwort: Response
+  try {
+    antwort = await fetch(AAS_URL + pfad, {
+      // immer frische Daten, z. B. nach neu erzeugten AASX
+      cache: 'no-store',
+      signal: AbortSignal.timeout(ZEITLIMIT_MS)
+    })
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'TimeoutError') {
+      throw new Error(
+          `Keine Antwort vom AAS-Server nach ${ZEITLIMIT_MS / 1000} s (${pfad})`
+      )
+    }
+    throw new Error(`AAS-Server nicht erreichbar (${pfad})`)
+  }
 
   if (!antwort.ok) {
     throw new Error(
