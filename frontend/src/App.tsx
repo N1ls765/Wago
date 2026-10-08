@@ -9,6 +9,7 @@ import {
   phasenNamen,
   type Produkt
 } from './aas/epd'
+import { shopUrl, verpackung } from './shop'
 
 // =====================================================
 // WAGO EPD EXPLORER
@@ -33,6 +34,10 @@ const verifizierungNamen: Record<string, string> = {
   External: 'Extern',
   ThirdPartyVerification: 'Extern (Drittprüfung)',
   Internal: 'Intern'
+}
+
+function standardMenge(nummer: string): string {
+  return String(verpackung(nummer)?.vpe ?? 100)
 }
 
 function berechneGWP(
@@ -104,13 +109,13 @@ function Explorer({ produkte }: { produkte: Produkt[] }) {
   const [serienFilter, setSerienFilter] = useState('Alle')
   const [filter, setFilter] = useState('Alle')
   const [auswahl, setAuswahl] = useState(start.nummer)
-  const [menge, setMenge] = useState('100')
+  const [menge, setMenge] = useState(standardMenge(start.nummer))
 
   const [vergleichA, setVergleichA] = useState(start.nummer)
   const [vergleichB, setVergleichB] = useState(
       (produkte.find(p => p.nummer !== start.nummer) ?? start).nummer
   )
-  const [vergleichMenge, setVergleichMenge] = useState('100')
+  const [vergleichMenge, setVergleichMenge] = useState('1000')
 
   const serien = [...new Set(produkte.map(p => p.serie))]
 
@@ -119,6 +124,16 @@ function Explorer({ produkte }: { produkte: Produkt[] }) {
   }
 
   const produkt = findeProdukt(auswahl)
+  const pack = verpackung(produkt.nummer)
+
+  const schnellwahl = pack
+      ? [
+        { menge: pack.uvpe, label: 'UVPE' },
+        { menge: pack.vpe, label: '1 VPE' },
+        { menge: pack.vpe * 5, label: '5 VPE' },
+        { menge: pack.vpe * 10, label: '10 VPE' }
+      ]
+      : [1, 10, 100, 1000].map(n => ({ menge: n, label: 'Stück' }))
 
   const anzahl = Number(menge)
   const gueltigeMenge =
@@ -206,8 +221,15 @@ function Explorer({ produkte }: { produkte: Produkt[] }) {
       </option>
   ))
 
-  function waehleProdukt(nummer: string) {
+  // Bei einem Produktwechsel startet die Stückzahl mit
+  // einer vollen Verpackungseinheit, wie im Shop
+  function wechsleProdukt(nummer: string) {
     setAuswahl(nummer)
+    setMenge(standardMenge(nummer))
+  }
+
+  function waehleProdukt(nummer: string) {
+    wechsleProdukt(nummer)
 
     document.getElementById('rechner')?.scrollIntoView({
       behavior: 'smooth'
@@ -445,7 +467,7 @@ function Explorer({ produkte }: { produkte: Produkt[] }) {
                 <select
                     id="variante"
                     value={auswahl}
-                    onChange={e => setAuswahl(e.target.value)}
+                    onChange={e => wechsleProdukt(e.target.value)}
                 >
                   {produktOptionen}
                 </select>
@@ -458,23 +480,24 @@ function Explorer({ produkte }: { produkte: Produkt[] }) {
                     id="menge"
                     type="number"
                     min="1"
-                    step="1"
+                    step={pack ? pack.uvpe : 1}
                     value={menge}
                     onChange={e => setMenge(e.target.value)}
                 />
 
                 <div className="quick-buttons">
-                  {[1, 10, 100, 1000].map(n => (
+                  {schnellwahl.map(s => (
                       <button
-                          key={n}
+                          key={s.label}
                           className={
-                            menge === String(n)
+                            menge === String(s.menge)
                                 ? 'active'
                                 : ''
                           }
-                          onClick={() => setMenge(String(n))}
+                          onClick={() => setMenge(String(s.menge))}
                       >
-                        {format(n, 0)}
+                        {format(s.menge, 0)}
+                        <small>{s.label}</small>
                       </button>
                   ))}
                 </div>
@@ -484,6 +507,32 @@ function Explorer({ produkte }: { produkte: Produkt[] }) {
                       Bitte eine gültige Stückzahl
                       größer 0 eingeben.
                     </p>
+                )}
+
+                {pack && (
+                    <div className="shop-box">
+                      <p>
+                        Im WAGO-Shop: VPE {format(pack.vpe, 0)} Stück,
+                        {' '}kleinste Packung (UVPE) {format(pack.uvpe, 0)} Stück.
+                      </p>
+
+                      {gueltigeMenge && anzahl % pack.uvpe !== 0 && (
+                          <p className="shop-hinweis">
+                            {format(anzahl, 0)} Stück sind kein Vielfaches
+                            {' '}der UVPE. Im Shop wären es
+                            {' '}{format(Math.ceil(anzahl / pack.uvpe) * pack.uvpe, 0)} Stück.
+                          </p>
+                      )}
+
+                      <a
+                          className="shop-link"
+                          href={shopUrl(produkt.nummer)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                      >
+                        WAGO {produkt.nummer} im Shop ansehen ↗
+                      </a>
+                    </div>
                 )}
 
                 <div className="info-box">

@@ -427,6 +427,39 @@ select:focus {
   font-weight: 700;
 }
 
+.quick-buttons button small {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.75;
+}
+
+.shop-box {
+  margin-top: 16px;
+  font-size: 13px;
+  color: #617466;
+  line-height: 1.5;
+}
+
+.shop-box p {
+  margin: 0 0 8px;
+}
+
+.shop-hinweis {
+  color: #9a6a00;
+}
+
+.shop-link {
+  color: #427d2a;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.shop-link:hover {
+  text-decoration: underline;
+}
+
 .quick-buttons button.active {
   background: #68a633;
   color: white;
