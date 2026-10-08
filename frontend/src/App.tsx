@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from 'react'
 import './App.css'
+import wagoLogo from './assets/wago-logo.svg'
 import { AAS_URL } from './aas/client'
 import {
   ladeProdukte,
@@ -220,7 +221,8 @@ function Explorer({ produkte }: { produkte: Produkt[] }) {
 
         <header className="header">
           <a className="logo" href="#">
-            WAGO <span>EPD Explorer</span>
+            <img src={wagoLogo} alt="WAGO" />
+            <span>EPD Explorer</span>
           </a>
 
           <nav>
