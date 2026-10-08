@@ -1,6 +1,13 @@
-# WAGO EPD → AASX
+# WAGO EPD → AASX → AAS-Server → EPD Explorer
 
-Erzeugt aus Umweltproduktdeklarationen (EPD, bei WAGO: PEP ecopassport) AASX-Dateien mit dem Teilmodell *EPD Type III*, eine AASX je Artikel.
+Erzeugt aus Umweltproduktdeklarationen (EPD, bei WAGO: PEP ecopassport) AASX-Dateien mit dem Teilmodell *EPD Type III*, eine AASX je Artikel. Ein eigener AAS-Server (Eclipse BaSyx) stellt die Pakete über die AAS-API bereit, die Oberfläche *WAGO EPD Explorer* liest sie von dort.
+
+Schnellstart Server + Oberfläche (Details: `aas-server/README.md`, `frontend/README.md`):
+
+```bash
+cd aas-server && docker compose up -d
+cd ../frontend && npm install && npm run dev
+```
 
 ```
 epd/<serie>/<PEP>.pdf ──pep_<serie>.py──▶ epd/<serie>/EPD_<serie>.xlsx ──excel_to_aasx.py──▶ epd/<serie>/aasx/*.aasx
@@ -31,6 +38,8 @@ EPD ohne passendes PDF-Skript: vorlagen/EPD_Vorlage_v1.xlsx von Hand ausfüllen 
 │   │   └── aasx/                 erzeugte AASX (9)
 │   └── 2273/                     PEP WAGO-00002, Serie 2273 (gleicher Aufbau, 5 AASX)
 ├── tests/                        pytest (25 Tests)
+├── aas-server/                   eigener AAS-Server (Eclipse BaSyx, Docker), lädt epd/*/aasx
+├── frontend/                     WAGO EPD Explorer (React + Vite), liest über die AAS-API
 └── wago_unterlagen/              von WAGO: User Guide, Referenzinstanz, SmartData-API-Beschreibungen
 ```
 
