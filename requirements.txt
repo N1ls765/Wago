@@ -1,5 +1,6 @@
 pandas
 openpyxl
 lxml
+pdfplumber
 aas-core3.0
 pytest
