@@ -591,6 +591,46 @@ select:focus {
   overflow-x: auto;
 }
 
+/* Umschalter Grafik / Tabelle */
+
+.ansicht-kopf {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.ansicht-kopf h3 {
+  margin-bottom: 0;
+}
+
+.ansicht-umschalter {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid #cdddc7;
+  border-radius: 9px;
+  background: white;
+}
+
+.ansicht-umschalter button {
+  padding: 7px 16px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #427d2a;
+  font-weight: 700;
+}
+
+.ansicht-umschalter button.active {
+  background: #68a633;
+  color: white;
+}
+
+.ansicht-kopf ~ .table-scroll {
+  margin: 30px 0 40px;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
