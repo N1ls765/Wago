@@ -38,6 +38,7 @@ EPD ohne passendes PDF-Skript: vorlagen/EPD_Vorlage_v1.xlsx von Hand ausfüllen 
 
 ```
 ├── README.md
+├── docker-compose.yml            startet AAS-Server, Portal und Oberfläche (siehe „Starten“)
 ├── requirements.txt
 ├── skripte/                      gemeinsamer Code
 │   ├── excel_to_aasx.py          Standard-Excel → AASX (generisch, ohne Produktwissen)
@@ -63,10 +64,17 @@ EPD ohne passendes PDF-Skript: vorlagen/EPD_Vorlage_v1.xlsx von Hand ausfüllen 
 
 ## Benutzung
 
-Alle Befehle im Projektordner:
+Alle Befehle im Projektordner. Einmalig eine Python-Umgebung anlegen und aktivieren:
 
 ```bash
+python -m venv .venv
+.venv\Scripts\activate          # Windows; macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
+```
+
+Danach:
+
+```bash
 
 python epd/221/pep_221.py                               # PDF -> epd/221/EPD_221.xlsx, danach Excel sichten
 python skripte/excel_to_aasx.py epd/221/EPD_221.xlsx    # -> epd/221/aasx/
@@ -79,7 +87,7 @@ python -m pytest tests -q
 
 Exit-Codes von `excel_to_aasx.py`: `0` ok · `1` aas-core3-Befund bzw. aas-core3 fehlt · `2` Fehler in der Excel (es wird nichts erzeugt).
 
-Optionen: `--out` (Standard: `aasx/` neben der Excel), `--mit-total` (Summenwerte als stageCode `Total`), `--ohne-idshort-in-listen` (strikt AASd-120), `--ohne-value-ids`, `--ohne-einheiten-ids`, `--behalte-leere`, `--template`.
+Optionen: `--out` (Standard: `aasx/` neben der Excel), `--variante` (nur diese Artikelnummer, mehrfach möglich), `--nur-pruefen` (Excel prüfen, nichts erzeugen), `--mit-total` (Summenwerte als stageCode `Total`), `--ohne-idshort-in-listen` (strikt AASd-120), `--ohne-value-ids`, `--ohne-einheiten-ids`, `--behalte-leere`, `--template`.
 
 ## Neue EPD
 
@@ -93,6 +101,8 @@ Optionen: `--out` (Standard: `aasx/` neben der Excel), `--mit-total` (Summenwert
    - ein Indikatorname unbekannt ist: dann den Katalog in `skripte/epd_excel.py` (`STANDARD_INDIKATOREN`) ergänzen,
    - Total ≠ Summe der Module ist (Spalte verrutscht) oder Faktoren fehlen.
 4. Die erzeugte Excel sichten, dann `python skripte/excel_to_aasx.py epd/<serie>/EPD_<serie>.xlsx`.
+5. AAS-Server: den Ordner `epd/<serie>/aasx` in `aas-server/docker-compose.yml` als Volume und in `aas-server/aas-env.properties` unter `basyx.environment` eintragen, dann `docker compose up -d` (ein `restart` reicht bei neuen Volumes nicht).
+6. Oberfläche: Verpackungseinheiten der neuen Artikel in `frontend/src/shop.ts` eintragen und die Produktfotos als `frontend/public/produktbilder/<Artikel>.jpg` ablegen, dann `docker compose up -d --build frontend`. Ohne diese Einträge erscheinen die Artikel trotzdem, nur ohne Foto, VPE-Schnellwahl und Shop-Link.
 
 Neue Layout-Eigenheiten werden in `skripte/pep_bausteine.py` gelöst, damit alle PEPs davon profitieren.
 
@@ -120,7 +130,7 @@ Hinweise aus den PDFs (Warnungen der PEP-Skripte): Deckblatt nennt „PCR-4-ed4-
 
 ## Offene Punkte für WAGO (Template / Leitfaden)
 
-1. **AASd-120 und BaSyx:** Mit idShorts an Listenkindern (WAGO-Konvention) lehnt Eclipse BaSyx (Python SDK 1.2) das Teilmodell im strikten Modus ab. Im toleranten Modus fehlt `EnvironmentalResults` stillschweigend. Mit `--ohne-idshort-in-listen` liest BaSyx alles vollständig ein. Listeneinträge sind per Index adressierbar (`EnvironmentalResults[0]`).
+1. **AASd-120 und BaSyx:** Mit idShorts an Listenkindern (WAGO-Konvention) lehnt Eclipse BaSyx (Python SDK 1.2) das Teilmodell im strikten Modus ab. Im toleranten Modus fehlt `EnvironmentalResults` stillschweigend. Mit `--ohne-idshort-in-listen` liest BaSyx alles vollständig ein. Listeneinträge sind per Index adressierbar (`EnvironmentalResults[0]`). Der Java-Server in `aas-server/` (BaSyx AAS Environment) liest die Pakete auch mit idShorts vollständig ein.
 2. `scopeType` hat die semanticId `…/ScopeType`, die valueList steht aber an `…/EPDScope/Type`.
 3. `Location/region`, `locality`, `latitude`, `longitude` sind im Template Pflicht (One), laut Leitfaden Kap. 13 optional.
 4. `baseUnit` ist im Leitfaden eine Collection (unit, unitId), die CD im Template ist STRING.

@@ -35,8 +35,10 @@ Skript-Lauf reicht also:
 docker compose restart aas-env
 ```
 
-Ein neuer Ordner (z. B. eine weitere Produktserie) muss in `docker-compose.yml`
-als Volume und in `aas-env.properties` unter `basyx.environment` ergänzt werden.
+Ein neuer Ordner (z. B. eine weitere Produktserie) muss in dieser
+`docker-compose.yml` als Volume und in `aas-env.properties` unter
+`basyx.environment` ergänzt werden. Danach `docker compose up -d` statt
+`restart`, damit der Container mit dem neuen Volume neu erstellt wird.
 
 ## Beim Start erwartete Warnungen
 

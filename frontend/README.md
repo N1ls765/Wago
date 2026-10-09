@@ -5,8 +5,13 @@ React + TypeScript + Vite. Die EPD-Daten kommen live vom AAS-Server
 
 ## Starten
 
-1. AAS-Server starten (siehe `../aas-server/README.md`)
-2. Oberfläche starten:
+1. Im Hauptordner nur AAS-Server und Portal starten:
+
+   ```bash
+   docker compose up -d aas-env aas-web-ui
+   ```
+
+2. Oberfläche mit Node.js 22 starten:
 
    ```bash
    cd frontend
@@ -41,7 +46,9 @@ und deshalb nicht in der AAS. Sie kommen aus `src/shop.ts` und
 `public/produktbilder/<Artikel>.jpg` (Hauptbild der Shop-Produktseite, 480 px,
 Stand WAGO-Shop 08.10.2026) und müssen bei neuen Artikeln dort ergänzt werden.
 
-Andere Server-Adresse: `.env.example` nach `.env.local` kopieren und anpassen.
+Andere Server-Adresse: `.env.example` nach `.env.local` kopieren und anpassen. Das gilt
+nur für `npm run dev`; das Docker-Image leitet `/aas/` immer an den Dienst `aas-env`
+weiter (`nginx.conf`).
 
 ## Bekannte Lücken in den Daten
 
