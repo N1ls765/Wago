@@ -16,11 +16,11 @@ React + TypeScript + Vite. Die EPD-Daten kommen live vom AAS-Server
 
 3. http://localhost:5173 öffnen
 
-Ohne lokales Node.js geht es auch per Docker:
-
-```bash
-docker run --rm -it -p 5173:5173 -e AAS_PROXY_TARGET=http://host.docker.internal:8081 -v "$PWD":/app -v wago_fe_nm:/app/node_modules -w /app node:22 sh -c "npm ci && npx vite --host 0.0.0.0"
-```
+Ohne lokales Node.js: Im Hauptordner startet `docker compose up -d --build` alles
+zusammen, die Oberfläche läuft dann fertig gebaut unter http://localhost:8080.
+Dafür sorgen `Dockerfile` (bauen mit Node, ausliefern mit nginx) und `nginx.conf`
+(leitet `/aas/...` an den AAS-Server weiter, wie der Vite-Proxy im Dev-Betrieb).
+Nach Änderungen an der Oberfläche: `docker compose up -d --build frontend`.
 
 ## Wie die Daten geladen werden
 

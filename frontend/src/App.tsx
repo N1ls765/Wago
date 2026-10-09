@@ -72,7 +72,7 @@ function App() {
               <h3>AAS-Server nicht erreichbar</h3>
               <p className="error">{fehler}</p>
               <p className="hint">
-                Läuft der Server? Im Ordner aas-server:
+                Läuft der Server? Im Hauptordner des Projekts:
                 {' '}<code>docker compose up -d</code>
               </p>
               <button

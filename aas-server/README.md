@@ -8,6 +8,10 @@ BaSyx AAS Web UI ein Portal zum Durchklicken.
 
 Voraussetzung: Docker Desktop läuft.
 
+Normalerweise wird der Server zusammen mit der Oberfläche über die
+`docker-compose.yml` im Hauptordner gestartet (siehe `../README.md`). Nur Server
+und Portal ohne Oberfläche:
+
 ```bash
 cd aas-server
 docker compose up -d
