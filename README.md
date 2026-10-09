@@ -2,14 +2,30 @@
 
 Erzeugt aus Umweltproduktdeklarationen (EPD, bei WAGO: PEP ecopassport) AASX-Dateien mit dem Teilmodell *EPD Type III*, eine AASX je Artikel. Ein eigener AAS-Server (Eclipse BaSyx) stellt die Pakete über die AAS-API bereit, die Oberfläche *WAGO EPD Explorer* liest sie von dort.
 
-Voraussetzungen: Python 3.12+ (Skripte), Docker Desktop (AAS-Server), Node.js 22 (Oberfläche; alternativ per Docker, siehe `frontend/README.md`).
+## Starten
 
-Schnellstart Server + Oberfläche (Details: `aas-server/README.md`, `frontend/README.md`):
+Voraussetzung ist nur **Docker Desktop**. Im Hauptordner:
 
 ```bash
-cd aas-server && docker compose up -d
-cd ../frontend && npm install && npm run dev
+docker compose up -d --build
 ```
+
+| Was | Adresse |
+|---|---|
+| EPD Explorer (Oberfläche) | http://localhost:8080 |
+| AAS Web UI (Portal) | http://localhost:3000 |
+| AAS-API | http://localhost:8081/shells |
+
+Der erste Start dauert einige Minuten (Images laden, Oberfläche bauen), danach etwa 30 Sekunden, bis der AAS-Server bereit ist. Stoppen mit `docker compose down`.
+
+| Nach … | Befehl |
+|---|---|
+| neu erzeugten AASX-Paketen | `docker compose restart aas-env` |
+| Änderungen an der Oberfläche (`frontend/`) | `docker compose up -d --build frontend` |
+
+Zum Entwickeln an der Oberfläche mit automatischem Neuladen: Node.js 22 installieren, nur den Server starten (`docker compose up -d aas-env aas-web-ui`), dann in `frontend/` `npm install` und `npm run dev` (http://localhost:5173).
+
+Für die Skripte (AASX erzeugen) wird zusätzlich Python 3.12+ gebraucht, siehe „Benutzung“ unten.
 
 ```
 epd/<serie>/<PEP>.pdf ──pep_<serie>.py──▶ epd/<serie>/EPD_<serie>.xlsx ──excel_to_aasx.py──▶ epd/<serie>/aasx/*.aasx

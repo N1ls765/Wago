@@ -1,0 +1,23 @@
+# Komplettes Projekt mit einem Befehl starten (im Hauptordner):
+#
+#   docker compose up -d --build
+#
+#   EPD Explorer (Oberflaeche):  http://localhost:8080
+#   AAS Web UI (Portal):         http://localhost:3000
+#   AAS-API:                     http://localhost:8081/shells
+#
+# AAS-Server und Portal kommen aus aas-server/docker-compose.yml
+# (dort auch einzeln startbar).
+
+include:
+  - aas-server/docker-compose.yml
+
+services:
+  frontend:
+    build: ./frontend
+    container_name: wago-epd-explorer
+    ports:
+      - "8080:80"
+    depends_on:
+      - aas-env
+    restart: unless-stopped
